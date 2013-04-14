@@ -1,0 +1,178 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title></title>
+		<script type="text/javascript" src="lib/jquery-1.9.0.min.js"></script>
+		<script type="text/javascript" src="lib/audio.js"></script>
+		<script type="text/javascript" src="lib/jsfx.js"></script>
+		<script type="text/javascript" src="lib/jsfxlib.js"></script>
+		
+		<script type="text/javascript" src="tile.js"></script>
+		<script type="text/javascript" src="sprite.js"></script>
+		<script type="text/javascript" src="tilemap.js"></script>
+	  	
+	  	<script type="text/javascript">
+	  	    var KEY_ENTER   = 13;
+	  	    var KEY_SHIFT   = 16;
+	  	    var KEY_CONTROL = 17;
+	  	    var KEY_ALT     = 18;
+	  	    var KEY_ESCAPE  = 27;
+	  		var KEY_SPACE   = 32;
+	  	    var KEY_LEFT    = 37;
+	  	    var KEY_UP      = 38;
+	  	    var KEY_RIGHT   = 39;
+	  	    var KEY_DOWN    = 40;
+	  	
+	  	    var tiles = {};
+	  	    var sprites = [];
+	  	    var keyStates = [];
+	  	    var tileMap = null;
+	  	    var mainTimer = 0;
+	  	    var time = (new Date ()).getTime ();
+
+			
+			function mainLoop () {
+			    // Calculate delta time since last update.
+			    var dTime = (new Date ()).getTime () - time
+			    mainTimer += dTime;
+			    time = (new Date ()).getTime ();
+			    
+			    // Update all tiles.
+			    for (var tileName in tiles) {
+			        tiles[tileName].render ();
+				}
+				
+				// Update all sprites.
+				for (var i in sprites) {
+				    sprites[i].update (dTime);
+				    sprites[i].render ();
+					sprites[i].clearCollisions ();
+
+					// Check for collisions with other sprites.
+					for (var j = 0; j <= i - 1; j ++) {
+					    if (sprites[i].collidesWith (sprites[j])) {
+					        sprites[i].addCollision (sprites[j]);
+                            sprites[j].addCollision (sprites[i]);
+						}
+					}
+				}
+
+			    setTimeout ("mainLoop ()", 20);
+			}
+
+			
+			/**
+			 * Handle key press events and set the state of the key to pressed in the keyStates array.
+			 */
+			$(document).keydown (function (e) {
+       			keyStates[e.keyCode] = true;
+       			e.preventDefault ();
+			});
+
+
+            /**
+			 * Handle key release events and set the state of the key to released in the keyStates array.
+			 */
+			$(document).keyup (function (e) {
+			    keyStates[e.keyCode] = false;
+			    e.preventDefault ();
+			});
+		</script>
+  	
+
+  	    <script type="text/javascript">
+  	        var colState = false;
+  	    
+  	        // Initialize sound effects.
+			try {
+		  		audioLibParams = {
+		    		explosion : ["noise",0.0000,0.4000,0.0000,0.3360,0.0000,1.0180,20.0000,1710.0000,413.0000,-0.1700,0.0000,0.0000,0.0100,0.0003,0.0000,0.6960,0.7520,0.0000,0.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,0.0000],
+		    		pling     : ["square",0.0000,0.4000,0.0000,0.0220,0.4860,0.4760,20.0000,1465.0000,2400.0000,0.0000,0.0000,0.0000,0.0100,0.0003,0.0000,0.5920,0.1350,0.0000,0.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,0.0000]
+		  		};
+		  		
+		  		samples = jsfxlib.createWaves (audioLibParams);
+			} catch (ex) {
+			    // Create dummy code if sound is not supported by the browser.
+			    samples = {
+			        "pling" : {
+			            "play": function () {}
+					},
+					"explosion" : {
+					    "play": function () {}
+					}
+				};
+			}
+
+			// Initialize tiles...
+	  		tiles["testTile"]  = new Tile ("testTile",  ["tiles/disconnect.png", "tiles/connect.png"], 100);
+	  		tiles["static"]    = new Tile ("static",    ["tiles/test.jpg"], 0);
+	  		tiles["testTile2"] = new Tile ("testTile2", ["tiles/sound_none.png", "tiles/sound_low.png", "tiles/sound.png", "tiles/sound_low.png"], 200);
+		  	
+		  	
+     		$(document).ready (function () {
+           		tileMap = new TileMap ("map", 20, 20, 32, $("#container"));
+
+     		    for (var i = 0; i < 20; i ++) {
+     		        for (var j = 0; j < 20; j ++) {
+     		        	tileMap.setTile (i, j, Math.random () < 0.9 ? "static" : "testTile");
+          			}
+				}
+				tileMap.setPosition (-8, -8);
+				
+				sprites[0] = new Sprite ("clarence", tileMap.map, 96, ["tiles/test.jpg"]);
+				sprites[0].updateFunction = function (spr, dTime) {
+				    if (spr.getCollisions ().length > 0) {
+                    	spr.setImage ("tiles/tset.jpg");
+                    	if (!colState) {
+                    	    colState = true;
+                    	    samples.pling.play();
+						}
+					} else {
+					    spr.setImage ("tiles/test.jpg");
+					    colState = false;
+					    
+					}
+					
+					if (keyStates[KEY_LEFT]) {
+					    spr.move (-5, 0);
+					}
+					
+					if (keyStates[KEY_RIGHT]) {
+					    spr.move (5, 0);
+					}
+					
+					if (keyStates[KEY_UP]) {
+					    spr.move (0, -5);
+					}
+					
+					if (keyStates[KEY_DOWN]) {
+					    spr.move (0, 5);
+					}
+					
+					if (keyStates[KEY_SPACE]) {
+						samples.explosion.play ();
+					}
+				}
+				
+				sprites[1] = new Sprite ("clarence2", tileMap.map, 96, ["tiles/test.jpg"]);
+				sprites[1].updateFunction = function (spr, dTime) {
+					if (spr.getCollisions ().length > 0) {
+                    	spr.setImage ("tiles/tset.jpg");
+					} else {
+					    spr.setImage ("tiles/test.jpg");
+					}
+					
+				    spr.setPosition (-Math.sin (mainTimer / 800) * 100 + 240, -Math.cos (mainTimer / 800) * 100 + 240);
+				}
+
+				mainLoop ();
+			});
+	  	</script>
+	</head>
+	
+	<body style="margin: 0xp; padding: 0px;">
+		Hello world!
+		<div id="container" style="position: relative; width: 480px; height: 480px; border: solid 2px #000000; overflow: hidden;">
+		</div>
+	</body>
+</html>

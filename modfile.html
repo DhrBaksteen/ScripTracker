@@ -1,0 +1,361 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+	  <title>ScripTracker</title>
+
+	  <link rel="stylesheet" type="text/css" href="style.css" />
+
+	  <script type="text/javascript" src="lib/jquery-1.9.0.min.js"></script>
+	  <!--
+	  <script type="text/javascript" src="ModPlayer.js"></script>
+	  <script type="text/javascript" src="ModModule.js"></script>
+	  <script type="text/javascript" src="ModPattern.js"></script>
+	  <script type="text/javascript" src="ModSample.js"></script>
+	  -->
+
+	<script type="text/javascript" src="Effects.js"></script>
+	<script type="text/javascript" src="Module.js"></script>
+	<script type="text/javascript" src="Pattern.js"></script>
+	<script type="text/javascript" src="Sample.js"></script>
+	<script type="text/javascript" src="ScripTracker.js"></script>
+
+	  <script type="text/javascript">
+	    var mod = null;
+	    var player = null;
+		var playing = false;
+
+	    $(document).ready (function () {
+			try {
+				context = new webkitAudioContext ();
+			} catch (e) {
+				alert ("Web Audio API is not supported in this browser");
+			}
+
+			/*
+			var tempPattern = new ModPattern ("");
+			for (var i = 0; i < 16; i ++) {
+            	$("#trPatScroll").before (tempPattern.toSt3Row (i));
+			}
+			*/
+
+			$("#modFileChooser").change (function (e) {
+			    var file = e.target.files[0];
+
+                var fileReader = new FileReader();
+		        fileReader.onloadend = function (fileLoadedEvent) {
+		            if (fileLoadedEvent.target.readyState == FileReader.DONE) {
+						var fileNamePart = String (file.name).split (".");
+						var fileType = fileNamePart[fileNamePart.length - 1].toLowerCase ();
+						
+						if (fileType == "mod") {
+							mod = ModLoader (fileLoadedEvent.target.result);
+						} else if (fileType == "s3m") {
+							mod = S3mLoader (fileLoadedEvent.target.result);
+						}
+						
+						player = new ScripTracker ();
+						player.load (mod);
+						player.setRowCallbackhandler (playerUpdate);
+						player.play ();
+		            }
+		        }
+
+		        fileReader.readAsBinaryString (file);
+			});
+
+
+			$("#btnPlayPause").click (function () {
+				if (!player.isPlaying ()) {
+			    	$(this).removeClass ("btnPlay");
+			    	$(this).addClass    ("btnPause");
+
+					playing = true;
+					player.play ();
+                    updateVolumes ();
+				} else {
+					$(this).removeClass ("btnPause");
+					$(this).addClass    ("btnPlay");
+
+					playing = false;
+     				player.stop ();
+				}
+			});
+
+
+			$("#btnEject").click (function () {
+				$("#btnPlayPause").removeClass ("btnPause");
+				$("#btnPlayPause").addClass    ("btnPlay");
+				if (player) {
+    				player.stop ();
+				}
+
+                $("#modFileChooser").trigger("click");
+			});
+
+
+			$("#btnPattern").click (function () {
+    			player.setPatternLoop (!player.isPatternLoop ());
+
+				if (player.isPatternLoop ()) {
+					$(this).addClass ("btnPatternDown");
+				} else {
+                    $(this).removeClass ("btnPatternDown");
+				}
+			});
+
+
+    		$("#btnPrevOrder").click (function () {
+    			if (player.division < 8) {
+                    player.prevOrder ();
+				} else {
+					player.division = 0;
+				}
+			});
+
+
+            $("#btnNextOrder").click (function () {
+                player.nextOrder ();
+			});
+
+
+            $("td[id^='tdPatHead']").click (function () {
+				var channel = $(this).attr ("id").split ("tdPatHead")[1];
+
+				player.setMute (channel, !player.isMuted (channel));
+				
+				if (player.isMuted (channel)) {
+					$(this).addClass ("patternRowHeaderMute");
+				} else {
+                    $(this).removeClass ("patternRowHeaderMute");
+				}
+			});
+
+
+			$(window).resize(function(){
+				$('.tracker').css ({
+					position:'absolute',
+					left: ($(window).width  () - $('.tracker').outerWidth  ())  / 2,
+					top:  ($(window).height () - $('.tracker').outerHeight ()) / 2
+				});
+			});
+
+			$(window).resize();
+		});
+
+
+		function playerUpdate (player) {
+			var data = player.getSongData ();
+
+			// Fill song info area.
+			$("#txtSongName").text (data.songName);
+			$("#txtOrder").text (data.order + "/" + data.length);
+			$("#txtPattern").text (data.pattern);
+			$("#txtRow").text (data.row);
+			$("#txtTempo").text (data.bpm + "/" + data.ticks);
+
+			// Remove pattern data when pattern data view full.
+            $("#patternView tr").last ().find ("td").last ().removeClass ("patternCellBottomRight");
+			if ($("#patternView tr").length == 17) {
+				$("#patternView tr").eq (1).remove ();
+			}
+			
+			// Fill pattern data of current row
+			var rowData = $("<tr/>");
+			rowData.append ("<td class=\"patternCellBorder dataCell\">" + ((data.row < 10) ? "0" : "") + data.row + "</td>");
+			for (var i = 0; i < 8; i ++) {
+				rowData.append ("<td class=\"patternCellBorder dataCell\">" + data.channel[i].rowData + "</td>");	
+			}
+			rowData.insertBefore ("#trPatScroll");
+            
+			// Set instruments and VU meters.
+			for (var i = 0; i < 8; i ++) {
+				$("#tdVuInst" + i).text (data.channel[i].instrument.substring (0, 13));
+				$("#tdVuCell" + i + " div").each (function (j) {
+					var v = Math.round (data.channel[i].volume * 16);
+					
+					if (j < 12) {
+						if (v > j) {
+							$(this).attr ("class", "vuLed vuGreenOn");
+						} else {
+							$(this).attr ("class", "vuLed vuGreenOff");
+						}
+					} else {
+						if (v > j) {
+							$(this).attr ("class", "vuLed vuRedOn");
+						} else {
+							$(this).attr ("class", "vuLed vuRedOff");
+						}
+					}
+				});
+			}
+		}
+
+
+		function updateVolumes () {
+			for (var i = 0; i < player.sampleVolume.length; i ++) {
+				 var vol = Math.round (player.sampleVolume[i] * 16) - 1;
+
+				 for (var j = 0; j < 16; j ++) {
+                     if (vol >= j && j < 12) {
+					 	$("#tdVuCell" + i + " div").eq (j).addClass ("vuGreenOn");
+					 } else if (vol < j && j < 12) {
+					 	$("#tdVuCell" + i + " div").eq (j).removeClass ("vuGreenOn");
+					 } else if (vol >= j && j >= 12) {
+					 	$("#tdVuCell" + i + " div").eq (j).addClass ("vuRedOn");
+					 } else if (vol < j && j >= 12) {
+					 	$("#tdVuCell" + i + " div").eq (j).removeClass ("vuRedOn");
+					 }
+				 }
+			}
+
+			if (playing) {
+				setTimeout (function () {
+					updateVolumes ();
+				}, 10);
+			}
+		}
+	  </script>
+  </head>
+  <body>
+
+
+	<table class="tracker">
+		<tr>
+
+        	<!-- Player controls -->
+			<td align="left">
+                <table cellspacing="0" cellpadding="0">
+			 	    <tr>
+			 	        <td>
+			 	            <div id="btnPrevOrder" class="button btnPrev" title="Previous order">
+			 	            </div>
+			 	        </td>
+			 	        <td>
+			 	            <div id="btnPlayPause" class="button btnPlay" title="Play / Pause">
+			 	            </div>
+			 	        </td>
+			 	        <td>
+			 	            <div id="btnPattern" class="button btnPattern" title="Pattern repeat">
+			 	            </div>
+			 	        </td>
+			 	        <td>
+			 	            <div id="btnNextOrder" class="button btnNext" title="Next order">
+			 	            </div>
+			 	        </td>
+						<td class="spacer10"></td>
+			            <td>
+			 	            <div id="btnEject" class="button btnEject" title="Open file">
+			 	            </div>
+			 	        </td>
+			 	    </tr>
+			 	</table>
+			</td>
+
+            <!-- Song info -->
+			<td>
+            	<table cellspacing="0" cellpadding="0">
+					<tr>
+						<td class="dataLabelCell">Song:</td>
+						<td id="txtSongName" colspan="3" class="dataCell infoSong"></td>
+					</tr>
+					<tr>
+						<td class="dataLabelCell">Order:</td>
+						<td id="txtOrder" class="dataCell infoOrder"></td>
+						<td class="dataLabelCell infoTextTempo">Tempo:</td>
+						<td id="txtTempo" class="dataCell infoOrder"></td>
+					</tr>
+					<tr>
+						<td class="dataLabelCell">Pattern:</td>
+						<td id="txtPattern" class="dataCell infoPattern"></td>
+						<td class="dataLabelCell">Row:</td>
+						<td id="txtRow" class="dataCell infoRow"></td>
+					</td>
+				</table>
+			</td>
+
+			<!-- Logo -->
+			<td align="right">
+				<table>
+					<tr>
+						<td class="logo">
+							Version 1.0.0<br/>
+							Copyright (c) 2013 Maarten Janssen
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+
+		<tr>
+			<td colspan="3">
+
+			</td>
+		</tr>
+
+		<!-- Pattern view -->
+		<tr>
+			<td colspan="3">
+
+				<table>
+                	<tr>
+						<td style="padding-left: 29px">
+							<table cellspacing="0" cellpadding="0" class="patternView">
+								<tr>
+									<td id="tdVuInst0" class="patternRowHeaderLeft vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst1" class="vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst2" class="vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst3" class="vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst4" class="vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst5" class="vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst6" class="vuCell patternCellBorder">---</td>
+                                    <td id="tdVuInst7" class="vuCell">---</td>
+								</tr>
+                                <tr>
+									<td id="tdVuCell0" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell1" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell2" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell3" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell4" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell5" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell6" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+                                    <td id="tdVuCell7" class="vuCell"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<table id="patternView" cellspacing="0" cellpadding="0" class="patternView">
+								<tr>
+									<td class="patternRowHeaderLeft patternCellBorder"></td>
+									<td id="tdPatHead0" class="patternRowHeader patternCellBorder">Channel 01</td>
+			                        <td id="tdPatHead1" class="patternRowHeader patternCellBorder">Channel 02</td>
+			                        <td id="tdPatHead2" class="patternRowHeader patternCellBorder">Channel 03</td>
+			                        <td id="tdPatHead3" class="patternRowHeader patternCellBorder">Channel 04</td>
+			                        <td id="tdPatHead4" class="patternRowHeader patternCellBorder">Channel 05</td>
+			                        <td id="tdPatHead5" class="patternRowHeader patternCellBorder">Channel 06</td>
+			                        <td id="tdPatHead6" class="patternRowHeader patternCellBorder">Channel 07</td>
+			                        <td id="tdPatHead7" class="patternRowHeader">Channel 08</td>
+								</tr>
+								<tr id="trPatScroll">
+									<td colspan="9">
+										<table cellspacing="0" cellpadding="0" class="scrollTrack">
+											<tr>
+												<td><div class="smallButton btnScrollLeft"></div></td>
+												<td class="fullWidth"><div id="scrollButton" class="scrollButton"></div></td>
+												<td><div class="smallButton btnScrollRight"></div></td>
+											</tr>
+										</table>
+									</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
+
+	<input id="modFileChooser" type="file" style="display: none;"/>
+  </body>
+</html>
