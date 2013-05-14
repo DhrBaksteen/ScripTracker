@@ -1,6 +1,6 @@
 function ScripTracker () {
 	var _this  = this;                  // Self reference for private functions.
-
+	
 	var module  = null;                 // Module file that is playing.
 	var pattern = null;                 // The current pattern being played.
 
@@ -235,7 +235,7 @@ function ScripTracker () {
 				} else if (channelSample[c] != null) {
 					channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - channelSample[c].basePeriod) * 64 - channelSample[c].fineTune / 2;
 					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[c]) / 768);
-
+					
 					samplePos[c]     = 0;											// Restart sample
                     noteDelay[c]     = 0;											// Reset note delay
 			    	sampleRemain[c]  = channelSample[c].sampleLength;				// Repeat length of this sample
@@ -895,9 +895,9 @@ function S3mLoader (fileData) {
 
 		// Calculate the base note from C4 frequency
 		sample.basePeriod = (sampleData.charCodeAt (32) + sampleData.charCodeAt (33) * 256);
-		sample.basePeriod = (sample.basePeriod - 1045) / 8363;
+		sample.basePeriod = (sample.basePeriod) / 8363;
 		sample.basePeriod = (Math.log (sample.basePeriod) / Math.log (2)) * 768 + 3072;
-		sample.basePeriod = Math.round (sample.basePeriod / 64) - 23;
+		sample.basePeriod = -(Math.round (sample.basePeriod / 64) - 72);
 		
 		var dataOffset = sampleData.charCodeAt (14) * 16 + sampleData.charCodeAt (15) * 4096;
 		var is16Bit    = (sampleData.charCodeAt (31) & 0x04) != 0;
