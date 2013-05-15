@@ -73,7 +73,7 @@ function ScripTracker () {
 	 * Start playback if player is stopped and a module is loaded.
 	 */
 	this.play = function () {
-		if (!playing && module != null) {
+		if (!isPlaying && module != null) {
 			isPlaying = true;
 			playerThread ();
 		}

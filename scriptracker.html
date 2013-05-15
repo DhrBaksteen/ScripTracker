@@ -56,7 +56,7 @@
 						player = new ScripTracker ();
 						player.load (mod);
 						player.setRowCallbackhandler (playerUpdate);
-						player.play ();
+						$("#btnPlayPause").click ();
 		            }
 		        }
 
@@ -71,7 +71,6 @@
 
 					playing = true;
 					player.play ();
-                    updateVolumes ();
 				} else {
 					$(this).removeClass ("btnPause");
 					$(this).addClass    ("btnPlay");
