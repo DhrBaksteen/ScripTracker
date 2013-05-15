@@ -89,12 +89,41 @@ function ScripTracker () {
 
 
 	/**
+	 * Jump to the previous order or restart the current order if we are below row 8.
+	 */
+	this.prevOrder = function () {
+		if (row >= 8) {
+			// Restart current order if we are after row 8.
+			row = 0;
+		} else {
+			row = 0;
+			
+			// Only jump to previous order if it's safe.
+			if (orderIndex - 1 >= 0 && module.orders[orderIndex] != 0xFE) {
+				orderIndex --;
+				pattern = module.patterns[module.orders[orderIndex]];
+			}
+		}
+	}
+	
+	
+	/**
+	 * Jump to the top of the next order.
+	 */
+	this.nextOrder = function () {
+		if (pattern != null) {
+			row = pattern.rows - 1;
+		}
+	}
+	
+	
+	/**
 	 * Restart the current module.
 	 */
 	this.rewind = function () {
 		orderIndex = 0;
 		row        = 0;
-
+		
 		// Get first pattern if a module is loaded.
 		if (module != null) {
 			pattern = module.patterns[module.orders[orderIndex]];
@@ -159,7 +188,7 @@ function ScripTracker () {
 	this.getSongData = function () {
 		var playerData = {
 			"songName" : module.name,
-			"order": orderIndex,
+			"order": orderIndex + 1,
 			"length": module.songLength,
 			"pattern": module.orders[orderIndex],
 			"bpm": bpm,
@@ -316,18 +345,24 @@ function ScripTracker () {
         // Handle pattern break if there is one.
 		if (breakPattern != -1) {
 			row = breakPattern - 1;
+			breakPattern = -1;
 
-			//if (!this.repeatOrder) {
+			// Only handle pattern break when not looping a pattern.
+			if (!this.repeatOrder) {
 				orderIndex ++;
-			//}
 
-			if (orderIndex == module.orders.length) {
-				// Stop player if we are out of orders.
-				isPlaying = false;
-			} else {
-				// Get the pattern of the next order and reset pattern break.
-              	pattern = module.patterns[module.orders[orderIndex]];
-				breakPattern = -1;
+				// Handle the skip order marker.
+				while (module.orders[orderIndex] == 0xFE && orderIndex < module.songLength) {
+					orderIndex ++
+				}
+				
+				// When we reach the end of the song jump back to the restart position.
+				if (orderIndex == module.songLength || module.orders[orderIndex] == 0xFF) {
+					isPlaying = false;
+					orderIndex = module.restartPosition;
+				}
+				
+				pattern = module.patterns[module.orders[orderIndex]];
 			}
 		}
 		
@@ -346,11 +381,15 @@ function ScripTracker () {
 			row = 0;
 			if (!patternLoop) orderIndex ++;
 
-			// When we reach the end of the song jump back to the restart position.
-			if (orderIndex == module.songLength) {
-				orderIndex = module.restartposition;
+			// Handle the skip order marker.
+			while (module.orders[orderIndex] == 0xFE && orderIndex < module.songLength) {
+				orderIndex ++
 			}
-
+			
+			// When we reach the end of the song jump back to the restart position.
+			if (orderIndex == module.songLength || module.orders[orderIndex] == 0xFF) {
+				orderIndex = module.restartPosition;
+			}
             pattern = module.patterns[module.orders[orderIndex]];
 		}
 	};
