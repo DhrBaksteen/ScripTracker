@@ -23,6 +23,7 @@
 	    var mod = null;
 	    var player = null;
 		var playing = false;
+		var solo = false;
 
 	    $(document).ready (function () {
 			try {
@@ -123,6 +124,32 @@
 				} else {
                     $(this).removeClass ("patternRowHeaderMute");
 				}
+			});
+			
+			
+			$("td[id^='tdPatHead']").bind ("contextmenu", function (e) {
+				var channel = $(this).attr ("id").split ("tdPatHead")[1];
+
+				if (!solo) {
+					for (var i = 0; i < 32; i ++) {
+						$("td[id^='tdPatHead']").eq (i).addClass ("patternRowHeaderMute");
+						player.setMute (i, true);
+					}
+				
+					$(this).removeClass ("patternRowHeaderMute");
+					player.setMute (channel, false);
+					
+					solo = true;
+				} else {
+					for (var i = 0; i < 32; i ++) {
+						$("td[id^='tdPatHead']").removeClass ("patternRowHeaderMute");
+						player.setMute (i, false);
+					}
+					
+					solo = false;
+				}
+				
+				return false;
 			});
 
 

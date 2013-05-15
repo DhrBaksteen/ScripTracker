@@ -358,7 +358,6 @@ function ScripTracker () {
 				
 				// When we reach the end of the song jump back to the restart position.
 				if (orderIndex == module.songLength || module.orders[orderIndex] == 0xFF) {
-					isPlaying = false;
 					orderIndex = module.restartPosition;
 				}
 				
