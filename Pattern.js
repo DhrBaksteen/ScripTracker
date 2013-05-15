@@ -77,7 +77,7 @@ function Pattern (rows, columns) {
 
 		// Write volume data
 		text += " ";
-		if (this.volume[row][channel] > 0) {
+		if (this.volume[row][channel] > -1 && this.sample[row][channel] != 0) {
 			var vol = this.volume[row][channel] * 64;
             text += hexValues.charAt (Math.floor (vol / 16));
 			text += hexValues.charAt (vol % 16);

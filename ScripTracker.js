@@ -13,6 +13,7 @@ function ScripTracker () {
 	var samplesPerTick = 0;             // Number of samples per tick.
 	var rowDelay       = 0;             // Time in ms taken by each row given the current BPM and tempo.
 	var tickDuration   = 0;				// Time in ms taken by eack tick.
+	var masterVolume   = 0.9			// The master volume multiplier.
 
 	var rowCallbackHandler = null;      // Callback function called when a new row is being processed.
 
@@ -33,10 +34,6 @@ function ScripTracker () {
 						 null, null, null, null, null, null, null, null,
 						 null, null, null, null, null, null, null, null,
 						 null, null, null, null, null, null, null, null];
-	var channelVolume = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,			// Channel volume.
-						 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-						 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-						 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,];
 	var channelPan    = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 			// Panning of each channel.
 						 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
 						 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
@@ -176,7 +173,7 @@ function ScripTracker () {
 			playerData.channel[i] = {};
 			playerData.channel[i].rowData = pattern.toText (row, i);
 			playerData.channel[i].instrument = (channelSample[i] != null) ? channelSample[i].name : "";
-			playerData.channel[i].volume = channelVolume[i] * sampleVolume[i];
+			playerData.channel[i].volume = sampleVolume[i];
 			
 		}
 		
@@ -223,15 +220,23 @@ function ScripTracker () {
 				//}
 				
 				channelPan[c]    = channelSample[c].panning;							// Set default panning for sample
-		    	sampleVolume[c]  = channelSample[c].volume;								// Set default sample volume
-				channelVolume[c] = 1.0;
+				// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
+				if (pattern.volume[row][c] > -1) {
+					sampleVolume[c] = pattern.volume[row][c];
+				} else {
+					sampleVolume[c] = channelSample[c].volume;	
+				}
+			}
+			
+			// If we do have a sample and the volume on the row > 0 then use this as sample volume.
+			if (channelSample[c] != null && pattern.volume[row][c] > 0) {
+				sampleVolume[c] = pattern.volume[row][c];
 			}
 
 		    if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
 				if (pattern.note[row][c] == 97) {
 					channelSample[c] = null;
 					channelPeriod[c] = 0;
-					channelVolume[c] = 0.0;
 				} else if (channelSample[c] != null) {
 					channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - channelSample[c].basePeriod) * 64 - channelSample[c].fineTune / 2;
 					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[c]) / 768);
@@ -248,11 +253,6 @@ function ScripTracker () {
 			for (var c = 0; c < module.channels; c ++) {
 				// Process effects.
 				handleEffect (row, c, t);
-				
-				// If there is a volume setting at this row copy it.
-				if (pattern.volume[row][c] > 0.0) {
-					channelVolume[c] = pattern.volume[row][c];
-				}
 
 				// Generate samples for current tick and channel.
 				var sIndex = samplesPerTick * t;
@@ -263,16 +263,16 @@ function ScripTracker () {
 					}
 
 			        if (channelSample[c] != null && noteDelay[c] == 0 && !channelMute[c]) {
-			            var sample = channelSample[c].sample[Math.floor (samplePos[c])] * sampleVolume[c] * channelVolume[c];
+			            var sample = channelSample[c].sample[Math.floor (samplePos[c])] * sampleVolume[c];
 
 						if (channelPan[c] <= 1.0) {
 							// Normal panning.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - channelPan[c]), 1.0));
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample * channelPan[c], 1.0));
+							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - channelPan[c]), 1.0)) * masterVolume;
+                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample * channelPan[c], 1.0)) * masterVolume;
 						} else {
 							// Surround sound.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5, 1.0));
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5, 1.0));
+							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5, 1.0)) * masterVolume;
+                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5, 1.0)) * masterVolume;
 						}
 
 						samplePos[c]    += sampleStep[c];
@@ -550,9 +550,24 @@ function ScripTracker () {
 			// Slide the volume up or down on every tick except the first. Parameter values > 127 will slide up, lower
 			// values slide down.
 			case Effects.VOLUME_SLIDE:
-    			if (tick > 0) {
-					var slide = (((volumeSlide[channel] & 0xF0) != 0) ? (volumeSlide[channel] & 0xF0) >> 4 : -(volumeSlide[channel] & 0x0F)) / 64.0;
-					sampleVolume[channel] = Math.max (0.0, Math.min (sampleVolume[channel] + slide, 1.0));
+    			if (tick > 0 && volumeSlide[channel] != 0) {
+					if ((volumeSlide[channel] & 0xF0) == 0xF0 && (volumeSlide[channel] & 0x0F) != 0x00) {
+						// Fine volume slide down only on tick 1.
+						if (tick == 1) {
+							var slide = (volumeSlide[channel] & 0x0F) / 64.0;
+							sampleVolume[channel] = Math.max (0.0, sampleVolume[channel] - slide);
+						}
+					} else if ((volumeSlide[channel] & 0x0F) == 0x0F && (volumeSlide[channel] & 0xF0) != 0x00) {
+						// Fine volume slide up only on tick 1.
+						if (tick == 1) {
+							var slide = ((volumeSlide[channel] & 0xF0) >> 4) / 64.0;
+							sampleVolume[channel] = Math.min (1.0, sampleVolume[channel] + slide);
+						}
+					} else {
+						// Normal volume slide.
+						var slide = (((volumeSlide[channel] & 0xF0) != 0) ? (volumeSlide[channel] & 0xF0) >> 4 : -(volumeSlide[channel] & 0x0F)) / 64.0;
+						sampleVolume[channel] = Math.max (0.0, Math.min (sampleVolume[channel] + slide, 1.0));
+					}
 				} else if (tick == 0 && param != 0) {
 					// On tick 0 copy parameter if set.
 					volumeSlide[channel] = param;
@@ -799,7 +814,7 @@ function ModLoader (fileData) {
 				}
 
 				pattern.sample[r][c]      = (byte1 & 0xF0) | ((byte3 & 0xF0) / 16);
-				pattern.volume[r][c]      = 0;
+				pattern.volume[r][c]      = -1;
 				
                 pattern.effectParam[r][c] = byte4;
 				if ((byte3 & 0x0F) == 0 && byte4 != 0) {
@@ -950,7 +965,7 @@ function S3mLoader (fileData) {
 				if ((data & 0x40) != 0) {
 					pattern.volume[i][channel] = patternData.charCodeAt (++pos) / 64.0;
 				} else {
-					pattern.volume[i][channel] = 0.0;
+					pattern.volume[i][channel] = -1;
 				}
 
 				if ((data & 0x80) != 0) {
