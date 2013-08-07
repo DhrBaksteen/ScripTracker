@@ -127,6 +127,10 @@ function ScripTracker () {
 		// Get first pattern if a module is loaded.
 		if (module != null) {
 			pattern = module.patterns[module.orders[orderIndex]];
+			
+			if (rowCallbackHandler != null) {
+				rowCallbackHandler (_this);
+			}
 		}
 	};
 
@@ -190,7 +194,8 @@ function ScripTracker () {
 			"songName" : module.name,
 			"order": orderIndex + 1,
 			"length": module.songLength,
-			"pattern": module.orders[orderIndex],
+			"patternIndex": module.orders[orderIndex],
+			"pattern": pattern,
 			"bpm": bpm,
 			"ticks": ticksPerRow,
 			"row": row,

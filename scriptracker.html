@@ -6,18 +6,14 @@
 	  <link rel="stylesheet" type="text/css" href="style.css" />
 
 	  <script type="text/javascript" src="lib/jquery-1.9.0.min.js"></script>
-	  <!--
-	  <script type="text/javascript" src="ModPlayer.js"></script>
-	  <script type="text/javascript" src="ModModule.js"></script>
-	  <script type="text/javascript" src="ModPattern.js"></script>
-	  <script type="text/javascript" src="ModSample.js"></script>
-	  -->
-
+	<script type="text/javascript" src="analytics.js"></script>
+	
 	<script type="text/javascript" src="Effects.js"></script>
 	<script type="text/javascript" src="Module.js"></script>
 	<script type="text/javascript" src="Pattern.js"></script>
 	<script type="text/javascript" src="Sample.js"></script>
 	<script type="text/javascript" src="ScripTracker.js"></script>
+	
 
 	  <script type="text/javascript">
 	    var mod = null;
@@ -32,12 +28,14 @@
 				alert ("Web Audio API is not supported in this browser");
 			}
 
-			/*
-			var tempPattern = new ModPattern ("");
 			for (var i = 0; i < 16; i ++) {
-            	$("#trPatScroll").before (tempPattern.toSt3Row (i));
+				var rowData = $("<tr/>");
+				rowData.append ("<td class=\"patternCellBorder dataCell\">" + ((i < 10) ? "0" : "") + i + "</td>");
+				for (var j = 0; j < 8; j ++) {
+					rowData.append ("<td class=\"patternCellBorder dataCell\">... .. .. ...</td>");	
+				}
+				rowData.insertBefore ("#trPatScroll");	
 			}
-			*/
 
 			$("#modFileChooser").change (function (e) {
 			    var file = e.target.files[0];
@@ -55,8 +53,8 @@
 						}
 						
 						player = new ScripTracker ();
-						player.load (mod);
 						player.setRowCallbackhandler (playerUpdate);
+						player.load (mod);
 						$("#btnPlayPause").click ();
 		            }
 		        }
@@ -171,24 +169,57 @@
 			// Fill song info area.
 			$("#txtSongName").text (data.songName);
 			$("#txtOrder").text (data.order + "/" + data.length);
-			$("#txtPattern").text (data.pattern);
+			$("#txtPattern").text (data.patternIndex);
 			$("#txtRow").text (data.row);
 			$("#txtTempo").text (data.bpm + "/" + data.ticks);
 
-			// Remove pattern data when pattern data view full.
-            $("#patternView tr").last ().find ("td").last ().removeClass ("patternCellBottomRight");
-			if ($("#patternView tr").length == 17) {
-				$("#patternView tr").eq (1).remove ();
+			// Row  0: Fill 15 rows with pattern data
+			// Row  0 -  8: Move row marker down
+			// Row  9 - 55: Hold marker and add rows at bottom
+			// Row 56 - 63: Move row marker down 
+
+			if (data.row > 7 && data.row < 56) {
+				// Remove pattern data when pattern data view full.
+	            $("#patternView tr").last ().find ("td").last ().removeClass ("patternCellBottomRight");
+				if ($("#patternView tr").length > 18) {
+					$("#patternView tr").eq (1).remove ();
+				}
+			
+				// Fill pattern data of current row
+				var rowData = $("<tr/>");
+				rowData.append ("<td class=\"patternCellBorder dataCell\">" + (data.row + 8) + "</td>");
+				for (var i = 0; i < 8; i ++) {
+					rowData.append ("<td class=\"patternCellBorder dataCell\">" + data.pattern.toText (Number (data.row) + 8, i) + "</td>");	
+				}
+				rowData.insertBefore ("#trPatScroll");
+			} else if (data.row == 0) {
+				for (var i = 0; i < 16; i ++) {
+					// Remove pattern data when pattern data view full.
+		            $("#patternView tr").last ().find ("td").last ().removeClass ("patternCellBottomRight");
+					if ($("#patternView tr").length > 18) {
+						$("#patternView tr").eq (1).remove ();
+					}
+
+					// Fill pattern data of current row
+					var rowData = $("<tr/>");
+					rowData.append ("<td class=\"patternCellBorder dataCell\">" + ((i < 10) ? "0" : "") + i + "</td>");
+					for (var j = 0; j < 8; j ++) {
+						rowData.append ("<td class=\"patternCellBorder dataCell\">" + data.pattern.toText (i, j) + "</td>");	
+					}
+					rowData.insertBefore ("#trPatScroll");	
+				}
 			}
 			
-			// Fill pattern data of current row
-			var rowData = $("<tr/>");
-			rowData.append ("<td class=\"patternCellBorder dataCell\">" + ((data.row < 10) ? "0" : "") + data.row + "</td>");
-			for (var i = 0; i < 8; i ++) {
-				rowData.append ("<td class=\"patternCellBorder dataCell\">" + data.channel[i].rowData + "</td>");	
+			// Hilight current row.
+			$("#patternView td").removeClass ("rowPlayHead");
+			if (data.row < 8) {
+				$("#patternView tr:nth-child(" + (data.row + 1) + ") td").addClass ("rowPlayHead");
+			} else if (data.row > 55) {
+				$("#patternView tr:nth-child(" + (data.row - 46) + ") td").addClass ("rowPlayHead");
+			} else {
+				$("#patternView tr:nth-child(9) td").addClass ("rowPlayHead");
 			}
-			rowData.insertBefore ("#trPatScroll");
-            
+
 			// Set instruments and VU meters.
 			for (var i = 0; i < 8; i ++) {
 				$("#tdVuInst" + i).text (data.channel[i].instrument.substring (0, 13));
@@ -300,7 +331,7 @@
 				<table>
 					<tr>
 						<td class="logo">
-							Version 1.0.0<br/>
+							Version 0.7.3<br/>
 							Copyright (c) 2013 Maarten Janssen
 						</td>
 					</tr>
