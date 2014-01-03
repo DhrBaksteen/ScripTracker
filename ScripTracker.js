@@ -738,7 +738,7 @@ function ScripTracker () {
 		rowDelay  = 60000 / rpm;
 		tickDuration = 60000 / tpm;
 
-		samplesPerTick = Math.round (sampleRate / 1000 * tickDuration);
+		samplesPerTick = Math.round (sampleRate / (tpm / 60));
 	};
 }
 

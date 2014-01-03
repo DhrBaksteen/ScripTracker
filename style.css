@@ -1,8 +1,13 @@
+@font-face {
+	font-family: PerfectDOS;
+	src: url(res/Perfect_DOS_VGA_437.ttf);
+}
+
 body {
 	background-image: url(res/background.png);
-	font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
 }
 
 td.spacer10 {
@@ -13,9 +18,9 @@ td.spacer10 {
 table.tracker {
 	background: #A49054;
 	color: #000000;
-	font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
 	border: outset 2px;
 	border-color: #FCDC84 #504428 #504428 #FCDC84;
 	-webkit-border-top-left-radius: 10px;
@@ -46,9 +51,9 @@ table.patternView {
 td.dataCell {
 	background-color: #000000;
     color: #AAAAAA;
-	font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
 	padding-left: 4px;
 	padding-right: 4px;
 	text-align: left;
@@ -57,9 +62,9 @@ td.dataCell {
 
 td.dataLabelCell {
 	color: #000000;
-    font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
+    font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
 	padding-left: 4px;
 	padding-right: 4px;
 	text-align: right;
@@ -86,7 +91,7 @@ td.patternRowHeader {
 	color: #FCDC84;
 	padding-left: 4px;
 	padding-right: 4px;
-	width: 104px;
+	width: 116px;
 }
 
 td.patternRowHeaderLeft {
@@ -113,10 +118,10 @@ td.vuCell {
 	padding-left: 4px;
 	padding-right: 4px;
 	color: #AAAAAA;
-	font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
-	width: 104px;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
+	width: 116px;
 	overflow: hidden;
 }
 
@@ -154,9 +159,9 @@ div.button {
 	cursor: pointer;
 	background: #A49054;
 	color: #000000;
-	font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
 	border: outset 2px;
 	border-color: #FCDC84 #504428 #504428 #FCDC84;
 	-webkit-border-top-left-radius: 10px;
@@ -193,9 +198,9 @@ div.smallButton {
 	cursor: pointer;
 	background: #A49054;
 	color: #000000;
-	font-size: 14px;
-	font-family: Courier New;
-	font-weight: bold;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	/* font-weight: bold; */
 	border: outset 2px;
 	border-color: #FCDC84 #504428 #504428 #FCDC84;
 	-webkit-border-top-left-radius: 10px;

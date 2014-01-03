@@ -55,6 +55,18 @@
 						player = new ScripTracker ();
 						player.setRowCallbackhandler (playerUpdate);
 						player.load (mod);
+						
+						// Set channel headers
+						$("td[id^='tdPatHead']").each (function (i) {
+							if (i >= mod.channels) {
+								$(this).addClass ("patternRowHeaderMute");
+								$(this).css ("cursor", "default");
+							} else {
+								$(this).removeClass ("patternRowHeaderMute");
+								$(this).css ("cursor", "");
+							}
+						});
+						
 						$("#btnPlayPause").click ();
 		            }
 		        }
@@ -115,12 +127,14 @@
             $("td[id^='tdPatHead']").click (function () {
 				var channel = $(this).attr ("id").split ("tdPatHead")[1];
 
-				player.setMute (channel, !player.isMuted (channel));
-				
-				if (player.isMuted (channel)) {
-					$(this).addClass ("patternRowHeaderMute");
-				} else {
-                    $(this).removeClass ("patternRowHeaderMute");
+				if (channel < mod.channels) {
+					player.setMute (channel, !player.isMuted (channel));
+					
+					if (player.isMuted (channel)) {
+						$(this).addClass ("patternRowHeaderMute");
+					} else {
+						$(this).removeClass ("patternRowHeaderMute");
+					}
 				}
 			});
 			
