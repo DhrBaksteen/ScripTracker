@@ -251,6 +251,9 @@ function ScripTracker () {
 
 		// Calculate time it took to process the current row so we can process the next row in time.
 		var dTime = (new Date ()).getTime () - t1;
+		if (dTime > rowDelay) {
+			console.log ("!!! " + Math.abs (rowDelay - dTime));
+		}
 		
 		// Calculate number of frames to wait until next update.
 		var delay = (rowDelay - dTime) / (1000 / 60);
@@ -378,16 +381,15 @@ function ScripTracker () {
 			row        = -1;
 			orderIndex = Math.min (module.songLength - 1, orderJump);
             pattern    = module.patterns[module.orders[orderIndex]];
-			orderJump  = -1;
 		}
 		
 		// Handle pattern break if there is one.
 		if (breakPattern != -1) {
 			row = breakPattern - 1;
-			breakPattern = -1;
+			
 
 			// Only handle pattern break when not looping a pattern.
-			if (!this.repeatOrder) {
+			if (!this.repeatOrder && orderJump == -1) {
 				orderIndex ++;
 
 				// Handle the skip order marker.
@@ -404,6 +406,8 @@ function ScripTracker () {
 			}
 		}
 
+		orderJump    = -1;
+		breakPattern = -1;
 		row ++;
 
 		// When we reach the end of our current pattern jump to the next one.
@@ -758,13 +762,16 @@ function ScripTracker () {
 	    ticksPerRow = ticks;
 	    bpm         = beats;
 
-        var rpm = (4 * bpm);
+        var rpm = (24 * bpm) / ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
 		var tpm = rpm * ticksPerRow;
 
 		rowDelay     = 60000 / rpm;				// Number of milliseconds in one row.
-		tickDuration = rowDelay / ticksPerRow;	// Number of milliseconds in one tick.
 
 		samplesPerTick = Math.round (sampleRate / (tpm / 60));
+	};
+	
+	this.setSpeed = function (beats, ticks) {
+		setSpeed (beats, ticks);
 	};
 }
 
