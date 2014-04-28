@@ -10,6 +10,7 @@
  */
 function Module () {
 	this.name = "";                     // Name of this song
+	this.type = "";						// Module type (mod, s3m, it, xm)
 
 	this.songLength      = 0;           // Number of orders in the order table
 	this.restartPosition = 0;           // Index in order table to jump to at song end

@@ -1,6 +1,9 @@
 function ScripTracker () {
 	var _this  = this;                  // Self reference for private functions.
 	
+	var afDelay = 0;
+	var afDelayFract = 0;
+	
 	var module  = null;                 // Module file that is playing.
 	var pattern = null;                 // The current pattern being played.
 
@@ -64,6 +67,13 @@ function ScripTracker () {
 
 	this.load = function (mod) {
 		module = mod;
+		
+		if (module.type == "mod") {
+			for (var i = 0; i < module.channels; i ++) {
+				channelPan[i] = (i % 2 == 0) ? 0.7 : 0.3;
+			}
+		}
+		
 		setSpeed (module.defaultBPM, module.defaultTempo);
 		this.rewind ();
 	}
@@ -74,6 +84,9 @@ function ScripTracker () {
 	 */
 	this.play = function () {
 		if (!isPlaying && module != null) {
+			this.afDelay      = 0;
+			this.afDelayFract = 0;
+			
 			isPlaying = true;
 			playerThread ();
 		}
@@ -219,6 +232,13 @@ function ScripTracker () {
 	 * Main player 'thread' that calls itself every time a new row should be processed as long as the player is playing.
 	 */
 	function playerThread () {
+		if (isPlaying) {
+			requestAnimationFrame (playerThread, this);
+		}
+	
+		afDelay --;
+		if (afDelay > 0) return;
+		
 		var t1 = (new Date ()).getTime ();
 
 		// Process new row.
@@ -231,9 +251,12 @@ function ScripTracker () {
 
 		// Calculate time it took to process the current row so we can process the next row in time.
 		var dTime = (new Date ()).getTime () - t1;
-		if (isPlaying) {
-			setTimeout (function () { playerThread (); }, rowDelay - dTime);
-		}
+		
+		// Calculate number of frames to wait until next update.
+		var delay = (rowDelay - dTime) / (1000 / 60);
+		afDelayFract += delay % 1;
+		afDelay = Math.floor (delay) + Math.floor (afDelayFract);
+		afDelayFract = afDelayFract % 1;
 	};
 
 
@@ -253,7 +276,10 @@ function ScripTracker () {
                     samplePos[c]     = 0;                                          		// Restart sample
 				//}
 				
-				channelPan[c]    = channelSample[c].panning;							// Set default panning for sample
+				if (module.type != "mod") {
+					channelPan[c] = channelSample[c].panning;							// Set default panning for sample
+				}
+				
 				// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
 				if (pattern.volume[row][c] > -1) {
 					sampleVolume[c] = pattern.volume[row][c];
@@ -346,8 +372,16 @@ function ScripTracker () {
         sourceR.buffer = audioBuffer;
   		sourceR.connect (audioCtx.destination);
   		sourceR.noteOn (0);
-
-        // Handle pattern break if there is one.
+		
+		// If an order jump is encountered jump to row 1 of the order at the given index.
+		if (orderJump != -1 && !patternLoop) {
+			row        = -1;
+			orderIndex = Math.min (module.songLength - 1, orderJump);
+            pattern    = module.patterns[module.orders[orderIndex]];
+			orderJump  = -1;
+		}
+		
+		// Handle pattern break if there is one.
 		if (breakPattern != -1) {
 			row = breakPattern - 1;
 			breakPattern = -1;
@@ -368,14 +402,6 @@ function ScripTracker () {
 				
 				pattern = module.patterns[module.orders[orderIndex]];
 			}
-		}
-		
-		// If an order jump is encountered jump to row 1 of the order at the given index.
-		if (orderJump != -1 && !patternLoop) {
-			row        = -1;
-			orderIndex = Math.min (module.songLength - 1, orderJump);
-            pattern    = module.patterns[module.orders[orderIndex]];
-			orderJump  = -1;
 		}
 
 		row ++;
@@ -619,7 +645,7 @@ function ScripTracker () {
 				break;
 
 			// After this row jump to row 1 of the given order.
-			case Effects.POSITION_JUMP:
+			case Effects.POSITION_JUMP:				
 				if (tick == 0) {
 					orderJump = param;
 				}
@@ -732,11 +758,11 @@ function ScripTracker () {
 	    ticksPerRow = ticks;
 	    bpm         = beats;
 
-        var rpm = (24 * bpm) / ticksPerRow;
+        var rpm = (4 * bpm);
 		var tpm = rpm * ticksPerRow;
 
-		rowDelay  = 60000 / rpm;
-		tickDuration = 60000 / tpm;
+		rowDelay     = 60000 / rpm;				// Number of milliseconds in one row.
+		tickDuration = rowDelay / ticksPerRow;	// Number of milliseconds in one tick.
 
 		samplesPerTick = Math.round (sampleRate / (tpm / 60));
 	};
@@ -750,6 +776,7 @@ function ScripTracker () {
  */
 function ModLoader (fileData) {
 	var mod = new Module ();
+	mod.type = "mod";
 
 	// Note period lookup table.
 	var notePeriods = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 906,
@@ -915,6 +942,7 @@ function ModLoader (fileData) {
 
 function S3mLoader (fileData) {
 	mod = new Module ();
+	mod.type     = "s3m";
 	mod.channels = 32;
 
 	mod.name         = fileData.substring (0, 28);
