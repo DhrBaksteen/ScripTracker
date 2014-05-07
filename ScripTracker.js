@@ -51,6 +51,14 @@ function ScripTracker () {
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var vibratoAmp    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Vibrato amplitude per channel
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var tremoloPos    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo position per channel.
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var tremoloStep   = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo step per tick per channel.
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var tremoloAmp    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo amplitude per channel
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var tremolo       = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo volume delta per channel
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var volumeSlide   = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Volume slide per channel
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var sampleVolume  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Current volume of each channel.
@@ -63,6 +71,7 @@ function ScripTracker () {
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var noteDelay     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Note delay per channel.
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var tPrev = (new Date ()).getTime ();
 
 
 	this.load = function (mod) {
@@ -232,41 +241,32 @@ function ScripTracker () {
 	 * Main player 'thread' that calls itself every time a new row should be processed as long as the player is playing.
 	 */
 	function playerThread () {
-		if (isPlaying) {
-			requestAnimationFrame (playerThread, this);
-		}
+		var t = (new Date ()).getTime ();
+		if (t - tPrev >= rowDelay) {
 	
-		afDelay --;
-		if (afDelay > 0) return;
+			// Process new row.
+			playRow ();
+
+			// If a callback handler is registered call it now.
+			if (rowCallbackHandler != null) {
+				rowCallbackHandler (_this);
+			}
 		
-		var t1 = (new Date ()).getTime ();
-
-		// Process new row.
-		playRow ();
-
-		// If a callback handler is registered call it now.
-		if (rowCallbackHandler != null) {
-			rowCallbackHandler (_this);
+			tPrev = t + (t - tPrev - rowDelay);
 		}
-
-		// Calculate time it took to process the current row so we can process the next row in time.
-		var dTime = (new Date ()).getTime () - t1;
-		if (dTime > rowDelay) {
-			console.log ("!!! " + Math.abs (rowDelay - dTime));
+			
+		if (isPlaying) {
+			setTimeout (function () {
+				playerThread ();
+			}, 1);
 		}
-		
-		// Calculate number of frames to wait until next update.
-		var delay = (rowDelay - dTime) / (1000 / 60);
-		afDelayFract += delay % 1;
-		afDelay = Math.floor (delay) + Math.floor (afDelayFract);
-		afDelayFract = afDelayFract % 1;
 	};
 
 
 	/**
 	 *
 	 */
-	function playRow () {
+	function playRow () {	
 		var samplesL = [];
 		var samplesR = [];
 
@@ -330,12 +330,12 @@ function ScripTracker () {
 
 						if (channelPan[c] <= 1.0) {
 							// Normal panning.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - channelPan[c]), 1.0)) * masterVolume;
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample * channelPan[c], 1.0)) * masterVolume;
+							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - channelPan[c]) + tremolo[c], 1.0)) * masterVolume;
+                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample * channelPan[c] + tremolo[c], 1.0)) * masterVolume;
 						} else {
 							// Surround sound.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5, 1.0)) * masterVolume;
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5, 1.0)) * masterVolume;
+							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5 + tremolo[c], 1.0)) * masterVolume;
+                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5 + tremolo[c], 1.0)) * masterVolume;
 						}
 
 						samplePos[c]    += sampleStep[c];
@@ -601,6 +601,28 @@ function ScripTracker () {
 				sampleVolume[channel] = Math.max (0.0, Math.min (sampleVolume[channel] + slide, 1.0));
 			
 				break;
+
+			// Tremolo effect
+			case Effects.TREMOLO:
+				// At tick 0 and non zero parameter reset tremolo sine and set new parameters.
+				if (tick == 0 && param != 0) {
+					// Set tremolo step if parameter non zero.
+					if ((param & 0xF0) != 0) {
+						tremoloStep[channel] = (2 * Math.PI) * (((param & 0xF0) >> 4) * ticksPerRow) / 64.0;
+					}
+					
+					// Set tremolo amplitude if parameter non zero.
+					if ((param & 0x0F) != 0) {
+						tremoloAmp[channel]  = (param & 0x0F) / 15;
+					}
+					
+					tremoloPos[channel]  = 0;
+				} 
+											
+				//  Calculate new volume delta and advance vibrato sine pos.
+				tremolo[channel]     = Math.sin (tremoloPos[channel]) * tremoloAmp[channel];				
+				tremoloPos[channel] += tremoloStep[channel];
+				break;
 				
 			// Set panning for this channel. 0x00 - left, 0x40 - middle, 0x80 - right. Anything greater than 0x80 
 			// couses surround sound on the current channel.
@@ -712,6 +734,14 @@ function ScripTracker () {
 				
 				break;
 				
+			// Set panning for this channel. 0x00 - left --> 0x0F - right.
+			case Effects.SET_PAN_16:
+				if (tick == 0) {
+					channelPan[channel] = (param & 0x0F) / 15.0;
+				}
+			
+				break;
+				
 			// Retrigger the note ever param ticks.
 			case Effects.RETRIGGER:
 				if (tick % (param & 0x0F) == 0) {
@@ -719,6 +749,22 @@ function ScripTracker () {
                     samplePos[channel]     = 0;
 				}
 			
+				break;
+				
+			// At the first tick of the row add x to the volume.
+			case Effects.FINE_VOL_SLIDE_UP:
+				if (tick == 0) {
+					sampleVolume[channel] = Math.min (sampleVolume[channel] + (param & 0x0F) / 15.0, 1.0);
+				}
+				
+				break;
+			
+			// At the first tick of the row subtract x from the volume.
+			case Effects.FINE_VOL_SLIDE_DOWN:
+				if (tick == 0) {
+					sampleVolume[channel] = Math.max (0.0, sampleVolume[channel] - (param & 0x0F) / 15.0);
+				}
+				
 				break;
 				
 			// Cut the volume of the note to 0 if the current tick equals the parameter value.
@@ -751,7 +797,7 @@ function ScripTracker () {
 			// No effect or unknown effect.
 			default:
 				if (pattern.effect[row][channel] != ".") {
-					//console.log (pattern.effect[row][channel] + " - " + param);
+					console.log (pattern.effect[row][channel] + " - " + param);
 				}
 				break;
 		}
@@ -761,7 +807,7 @@ function ScripTracker () {
 	function setSpeed (beats, ticks) {
 	    ticksPerRow = ticks;
 	    bpm         = beats;
-
+		
         var rpm = (24 * bpm) / ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
 		var tpm = rpm * ticksPerRow;
 
@@ -770,6 +816,8 @@ function ScripTracker () {
 		samplesPerTick = Math.round (sampleRate / (tpm / 60));
 	};
 	
+	
+	// TODO: Remove this debug function.
 	this.setSpeed = function (beats, ticks) {
 		setSpeed (beats, ticks);
 	};

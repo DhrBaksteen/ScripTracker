@@ -14,26 +14,28 @@ var Effects = {
 	POSITION_JUMP : "B",
 	SET_VOLUME : "C",
 	PATTERN_BREAK : "D",
+	SET_FILTER : "E0",				// Not for PC
 	FINE_PORTA_UP : "E1",
 	FINE_PORTA_DOWN : "E2",
-	SET_GLISANDO : "E3",
-	SET_VIBRATO : "E4",
+	SET_GLISANDO : "E3",			// Missing
+	SET_VIBRATO : "E4",				// Missing
 	SET_FINETUNE : "E5",
-	SET_LOOP : "E6",
-	SET_TREMOLO : "E7",
+	SET_LOOP : "E6",				// Missing
+	SET_TREMOLO : "E7",				// Missing
+	SET_PAN_16 : "E8",
 	RETRIGGER : "E9",
 	FINE_VOL_SLIDE_UP : "EA",
 	FINE_VOL_SLIDE_DOWN : "EB",
 	CUT_NOTE : "EC",
 	DELAY_NOTE : "ED",
-	DELAY_PATTERN : "EE",
+	DELAY_PATTERN : "EE",			// Missing
 	SET_TEMPO_BPM : "F",
-	SET_GLOBAL_VOLUME : "G",
-	GLOBAL_VOLUME_SLIDE : "H",
-	ENVELOPE_POSITION : "L",
-	PAN_SLIDE : "P",
-	MULTI_RETRIGGER : "R",
-	TREMOR: "T",
-	EXTRA_FINE_PORTA_UP : "X1",
-	EXTRA_FINE_PORTA_DOWN : "X2"
+	SET_GLOBAL_VOLUME : "G",		// Missing
+	GLOBAL_VOLUME_SLIDE : "H",		// Missing
+	ENVELOPE_POSITION : "L",		// Missing
+	PAN_SLIDE : "P",				// Missing
+	MULTI_RETRIGGER : "R",			// Missing
+	TREMOR: "T",					// Missing
+	EXTRA_FINE_PORTA_UP : "X1",		// Missing
+	EXTRA_FINE_PORTA_DOWN : "X2"	// Missing
 }

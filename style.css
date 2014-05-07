@@ -109,7 +109,7 @@ td.patternRowHeaderMute {
 }
 
 td.rowPlayHead {
-    background: #504428;
+    background: #504428 !important;
 }
 
 
