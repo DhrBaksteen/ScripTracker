@@ -31,7 +31,7 @@ function Pattern (rows, columns) {
 			this.note[i][j]        = 0;
 			this.sample[i][j]      = 0;
 			this.volume[i][j]      = 0;
-			this.effect[i][j]      = 0;
+			this.effect[i][j]      = Effects.NONE;
 			this.effectParam[i][j] = 0;
 		}
 	}

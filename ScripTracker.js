@@ -23,8 +23,9 @@ function ScripTracker () {
 	var isPlaying = false;              // Is te player currently playing?
 	var audioCtx = new webkitAudioContext ();
 
-	var breakPattern = -1;				// Pattern break ro to restart next order.
+	var breakPattern = -1;				// Pattern break row to restart next order.
 	var orderJump    = -1;				// Order jump index of next order.
+	var rowJump      = -1;				// Row to jump to when looping
 	var patternLoop  = false;			// Do not jump to next order, but repeat current.
 
 	var channelMute   = [false, false, false, false, false, false, false, false,    // Chanel muted flags.
@@ -70,6 +71,10 @@ function ScripTracker () {
 	var sampleRemain  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Sample data remaining on each channel.
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var noteDelay     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Note delay per channel.
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var loopMark      = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Row to jump to when looping.
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	var loopCount     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Loop counter per channel.
 						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	var tPrev = (new Date ()).getTime ();
 
@@ -242,7 +247,7 @@ function ScripTracker () {
 	 */
 	function playerThread () {
 		var t = (new Date ()).getTime ();
-		if (t - tPrev >= rowDelay) {
+		if (t - tPrev >= rowDelay - 2) {
 	
 			// Process new row.
 			playRow ();
@@ -404,6 +409,12 @@ function ScripTracker () {
 				
 				pattern = module.patterns[module.orders[orderIndex]];
 			}
+		}
+		
+		// Jump to a particular row in the current pattern;
+		if (rowJump > -1) {
+			row = rowJump - 1;
+			rowJump = -1;
 		}
 
 		orderJump    = -1;
@@ -703,7 +714,7 @@ function ScripTracker () {
 					}
 					
 					// Slide pitch up.
-					channelPeriod[channel] -= portaStap[channel];
+					channelPeriod[channel] -= portaStep[channel];
 					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
 					sampleStep[channel]    = freq / (samplesPerTick * 3);
 				}
@@ -719,7 +730,7 @@ function ScripTracker () {
 					}
 
 					// Slide pitch down.
-					channelPeriod[channel] += portaStap[channel];
+					channelPeriod[channel] += portaStep[channel];
 					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
 					sampleStep[channel]    = freq / (samplesPerTick * 3);
 				}
@@ -730,6 +741,26 @@ function ScripTracker () {
 			case Effects.SET_FINETUNE:
 				if (tick == 0 && channelSample[channel] != null) {
 					channelSample[channel].fineTune = param & 0x0F;
+				}
+				
+				break;
+				
+			// Pattern section loop.
+			case Effects.SET_LOOP:
+				if (tick == 0) {
+					if ((param & 0x0F) == 0) {
+						loopMark[channel] = row;
+					} else {
+						if (loopCount[channel] == 0) {
+							loopCount[channel] = (param & 0x0F);
+						} else {
+							loopCount[channel] --;
+						}
+						
+						if (loopCount[channel] > 0) {
+							rowJump = loopMark[channel];
+						}
+					}
 				}
 				
 				break;
@@ -797,7 +828,7 @@ function ScripTracker () {
 			// No effect or unknown effect.
 			default:
 				if (pattern.effect[row][channel] != ".") {
-					console.log (pattern.effect[row][channel] + " - " + param);
+					//console.log (pattern.effect[row][channel] + " - " + param);
 				}
 				break;
 		}
@@ -970,6 +1001,57 @@ function ModLoader (fileData) {
 					pattern.effect[r][c] = Effects.SET_VOLUME;
                 } else if ((byte3 & 0x0F) == 13) {
 					pattern.effect[r][c] = Effects.PATTERN_BREAK;
+				} else if ((byte3 & 0x0F) == 14) {
+					switch ((byte4 & 0xF0) >> 4) {
+						case 0:
+							pattern.effect[r][c] = Effects.SET_FILTER;
+							break;
+						case 1:
+							pattern.effect[r][c] = Effects.FINE_PORTA_UP;
+							break;
+						case 2:
+							pattern.effect[r][c] = Effects.FINE_PORTA_DOWN;
+							break;
+						case 3:
+							pattern.effect[r][c] = Effects.SET_GLISANDO;
+							break;
+						case 4:
+							pattern.effect[r][c] = Effects.SET_VIBRATO;
+							break;
+						case 5:
+							pattern.effect[r][c] = Effects.SET_FINETUNE;
+							break;
+						case 6:
+							pattern.effect[r][c] = Effects.SET_LOOP;
+							break;
+						case 7:
+							pattern.effect[r][c] = Effects.SET_TREMOLO;
+							break;
+						case 8:
+							pattern.effect[r][c] = Effects.SET_PAN_16;
+							break;
+						case 9:
+							pattern.effect[r][c] = Effects.RETRIGGER;
+							break;
+						case 10:
+							pattern.effect[r][c] = Effects.FINE_VOL_SLIDE_UP;
+							break;
+						case 11:
+							pattern.effect[r][c] = Effects.FINE_VOL_SLIDE_DOWN;
+							break;
+						case 12:
+							pattern.effect[r][c] = Effects.CUT_NOTE;
+							break;
+						case 13:
+							pattern.effect[r][c] = Effects.DELAY_NOTE;
+							break;
+						case 14:
+							pattern.effect[r][c] = Effects.DELAY_PATTERN;
+							break;						
+						default:
+							pattern.effect[r][c] = Effects.NONE;
+							break;
+					}
                 } else if ((byte3 & 0x0F) == 15) {
 					pattern.effect[r][c] = Effects.SET_TEMPO_BPM;
     			} else {
@@ -1069,7 +1151,7 @@ function S3mLoader (fileData) {
 			var data = patternData.charCodeAt (pos);
 
 			if (data != 0x00) {
-				var channel = data & 0x1F;
+				var channel = data & 0x1F;					
 
 				if ((data & 0x20) != 0) {
 					pos ++;
@@ -1137,6 +1219,7 @@ function S3mLoader (fileData) {
 						pattern.effect[i][channel] = Effects.VIBRATO_VOL_SLIDE;
 						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
 	    			} else {
+						console.log ("Unknown effect: " + patternData.charCodeAt (pos));
 						pattern.effect[i][channel] = Effects.NONE;
 						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
 					}
@@ -1144,8 +1227,8 @@ function S3mLoader (fileData) {
 					//pattern.effect[i][channel] = patternData.charCodeAt (pos);
 				}
 			} else {			
-				i ++;
-			}
+				i ++;				
+			}			
 			
 			pos ++;
 		}
