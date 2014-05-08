@@ -1,82 +1,82 @@
 function ScripTracker () {
 	var _this  = this;                  // Self reference for private functions.
 	
-	var afDelay = 0;
-	var afDelayFract = 0;
+	var registers = {
+		orderIndex:     0,				// Index in the order table of the module.
+		currentRow:     0,				// Current row in pattern.
+		currentTick:    0,				// Current tick in row.
+		
+		sampleRate:     22050,			// Playback sample rate.
+		bpm:            0,				// Current BPM.
+		ticksPerRow:    0,				// Current number of ticks in one row (tempo).
+		samplesPerTick: 0,				// Number of samples per tick.
+		rowDelay:       0,				// Time in ms taken by each row given the current BPM and tempo.
+		tickDuration:   0,				// Time in ms taken by eack tick.
+		masterVolume:   0.9,			// The master volume multiplier.
+		
+		breakPattern: -1,				// Pattern break row to restart next order.
+		orderJump:    -1,				// Order jump index of next order.
+		rowJump:      -1,				// Row to jump to when looping
+
+		channelMute:   [false, false, false, false, false, false, false, false,		// Channel muted flags.
+						false, false, false, false, false, false, false, false,
+						false, false, false, false, false, false, false, false,
+						false, false, false, false, false, false, false, false],
+		channelPeriod: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current period of each channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		channelSample: [null, null, null, null, null, null, null, null,				// Reference to current sample of channels.
+						null, null, null, null, null, null, null, null,
+						null, null, null, null, null, null, null, null,
+						null, null, null, null, null, null, null, null],
+		channelPan:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,						// Panning of each channel.
+						0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+						0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+						0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+		portaNote:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note period to porta to for each channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		portaStep:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note porta step per tick.
+					    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		vibratoPos:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Vibrato position per channel.
+					    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		vibratoStep:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Vibrato step per tick per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		vibratoAmp:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Vibrato amplitude per channel
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		tremoloPos:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Tremolo position per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		tremoloStep:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Tremolo step per tick per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		tremoloAmp:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Tremolo amplitude per channel
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		tremolo:       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,				// Tremolo volume delta per channel
+						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		volumeSlide:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Volume slide per channel
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		sampleVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    		// Current volume of each channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		samplePos:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Current sample data position.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		sampleStep:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Sample data step for each channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		sampleRemain:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Sample data remaining on each channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		noteDelay:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Note delay per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		loopMark:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Row to jump to when looping.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		loopCount:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Loop counter per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+	};
 	
 	var module  = null;                 // Module file that is playing.
 	var pattern = null;                 // The current pattern being played.
 
-	var orderIndex  = 0;                // Index in the order table of the module.
-	var row         = 0;                // Current row in pattern.
-
-	var sampleRate     = 22050			// Playback sample rate.
-	var bpm            = 0;             // Current BPM.
-	var ticksPerRow    = 0;             // Current number of ticks in one row (tempo).
-	var samplesPerTick = 0;             // Number of samples per tick.
-	var rowDelay       = 0;             // Time in ms taken by each row given the current BPM and tempo.
-	var tickDuration   = 0;				// Time in ms taken by eack tick.
-	var masterVolume   = 0.9			// The master volume multiplier.
-
 	var rowCallbackHandler = null;      // Callback function called when a new row is being processed.
 
-	var isPlaying = false;              // Is te player currently playing?
-	var audioCtx = new webkitAudioContext ();
-
-	var breakPattern = -1;				// Pattern break row to restart next order.
-	var orderJump    = -1;				// Order jump index of next order.
-	var rowJump      = -1;				// Row to jump to when looping
-	var patternLoop  = false;			// Do not jump to next order, but repeat current.
-
-	var channelMute   = [false, false, false, false, false, false, false, false,    // Chanel muted flags.
-						 false, false, false, false, false, false, false, false,
-						 false, false, false, false, false, false, false, false,
-						 false, false, false, false, false, false, false, false];
-	var channelPeriod = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Current period of each channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var channelSample = [null, null, null, null, null, null, null, null,    // Reference to current sample of channels.
-						 null, null, null, null, null, null, null, null,
-						 null, null, null, null, null, null, null, null,
-						 null, null, null, null, null, null, null, null];
-	var channelPan    = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 			// Panning of each channel.
-						 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-						 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-						 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
-	var portaNote     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Note period to porta to for each channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var portaStep     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Note porta step per tick.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var vibratoPos    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Vibrato position per channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var vibratoStep   = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Vibrato step per tick per channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var vibratoAmp    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Vibrato amplitude per channel
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var tremoloPos    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo position per channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var tremoloStep   = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo step per tick per channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var tremoloAmp    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo amplitude per channel
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var tremolo       = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Tremolo volume delta per channel
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var volumeSlide   = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	// Volume slide per channel
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var sampleVolume  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Current volume of each channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    var samplePos     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Current sample data position.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var sampleStep    = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Sample data step for each channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var sampleRemain  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Sample data remaining on each channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var noteDelay     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Note delay per channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var loopMark      = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Row to jump to when looping.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var loopCount     = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Loop counter per channel.
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	var tPrev = (new Date ()).getTime ();
+	var isPlaying   = false;						// Is the player currently playing?
+	var patternLoop = false;						// Do not jump to next order, but repeat current.
+	var audioCtx    = new webkitAudioContext ();	
+	var tPrev       = (new Date ()).getTime ();
 
 
 	this.load = function (mod) {
@@ -84,11 +84,12 @@ function ScripTracker () {
 		
 		if (module.type == "mod") {
 			for (var i = 0; i < module.channels; i ++) {
-				channelPan[i] = (i % 2 == 0) ? 0.7 : 0.3;
+				registers.channelPan[i] = (i % 2 == 0) ? 0.7 : 0.3;
 			}
 		}
 		
-		setSpeed (module.defaultBPM, module.defaultTempo);
+		Effects.SET_TEMPO.handler (registers, 0, module.defaultBPM);
+		Effects.SET_SPEED.handler (registers, 0, module.defaultTempo);
 		this.rewind ();
 	}
 	
@@ -97,10 +98,7 @@ function ScripTracker () {
 	 * Start playback if player is stopped and a module is loaded.
 	 */
 	this.play = function () {
-		if (!isPlaying && module != null) {
-			this.afDelay      = 0;
-			this.afDelayFract = 0;
-			
+		if (!isPlaying && module != null) {	
 			isPlaying = true;
 			playerThread ();
 		}
@@ -119,16 +117,16 @@ function ScripTracker () {
 	 * Jump to the previous order or restart the current order if we are below row 8.
 	 */
 	this.prevOrder = function () {
-		if (row >= 8) {
+		if (registers.currentRow >= 8) {
 			// Restart current order if we are after row 8.
-			row = 0;
+			registers.currentRow = 0;
 		} else {
-			row = 0;
+			registers.currentRow = 0;
 			
 			// Only jump to previous order if it's safe.
-			if (orderIndex - 1 >= 0 && module.orders[orderIndex] != 0xFE) {
-				orderIndex --;
-				pattern = module.patterns[module.orders[orderIndex]];
+			if (registers.orderIndex - 1 >= 0 && module.orders[registers.orderIndex] != 0xFE) {
+				registers.orderIndex --;
+				pattern = module.patterns[module.orders[registers.orderIndex]];
 			}
 		}
 	}
@@ -139,7 +137,7 @@ function ScripTracker () {
 	 */
 	this.nextOrder = function () {
 		if (pattern != null) {
-			row = pattern.rows - 1;
+			registers.currentRow = pattern.rows - 1;
 		}
 	}
 	
@@ -148,12 +146,12 @@ function ScripTracker () {
 	 * Restart the current module.
 	 */
 	this.rewind = function () {
-		orderIndex = 0;
-		row        = 0;
+		registers.orderIndex = 0;
+		registers.currentRow = 0;
 		
 		// Get first pattern if a module is loaded.
 		if (module != null) {
-			pattern = module.patterns[module.orders[orderIndex]];
+			pattern = module.patterns[module.orders[registers.orderIndex]];
 			
 			if (rowCallbackHandler != null) {
 				rowCallbackHandler (_this);
@@ -166,7 +164,7 @@ function ScripTracker () {
 	 * Is the given channel muted?
 	 */
 	this.isMuted = function (channel) {
-		return channelMute[channel];
+		return registers.channelMute[channel];
 	}
 	
 	
@@ -190,7 +188,7 @@ function ScripTracker () {
 	 * Set or reset the mute flag of the given channel.
 	 */
 	this.setMute = function (channel, mute) {
-		channelMute[channel] = mute;
+		registers.channelMute[channel] = mute;
 	}
 	
 	
@@ -219,22 +217,22 @@ function ScripTracker () {
 	this.getSongData = function () {
 		var playerData = {
 			"songName" : module.name,
-			"order": orderIndex + 1,
+			"order": registers.orderIndex + 1,
 			"length": module.songLength,
-			"patternIndex": module.orders[orderIndex],
+			"patternIndex": module.orders[registers.orderIndex],
 			"pattern": pattern,
-			"bpm": bpm,
-			"ticks": ticksPerRow,
-			"row": row,
+			"bpm": registers.bpm,
+			"ticks": registers.ticksPerRow,
+			"row": registers.currentRow,
 			"channel": []
 		};
 		
 		// Export data of current row.
 		for (var i = 0; i < 32; i ++) {
 			playerData.channel[i] = {};
-			playerData.channel[i].rowData = pattern.toText (row, i);
-			playerData.channel[i].instrument = (channelSample[i] != null) ? channelSample[i].name : "";
-			playerData.channel[i].volume = sampleVolume[i];
+			playerData.channel[i].rowData = pattern.toText (registers.currentRow, i);
+			playerData.channel[i].instrument = (registers.channelSample[i] != null) ? registers.channelSample[i].name : "";
+			playerData.channel[i].volume = registers.sampleVolume[i];
 			
 		}
 		
@@ -246,9 +244,14 @@ function ScripTracker () {
 	 * Main player 'thread' that calls itself every time a new row should be processed as long as the player is playing.
 	 */
 	function playerThread () {
-		var t = (new Date ()).getTime ();
-		if (t - tPrev >= rowDelay - 2) {
+		if (!isPlaying) return;
 	
+		setTimeout (function () {
+			playerThread ();
+		}, 1);
+	
+		var t = (new Date ()).getTime ();
+		if (t - tPrev >= registers.rowDelay - 2) {						
 			// Process new row.
 			playRow ();
 
@@ -257,13 +260,7 @@ function ScripTracker () {
 				rowCallbackHandler (_this);
 			}
 		
-			tPrev = t + (t - tPrev - rowDelay);
-		}
-			
-		if (isPlaying) {
-			setTimeout (function () {
-				playerThread ();
-			}, 1);
+			tPrev = t + (t - tPrev - registers.rowDelay);
 		}
 	};
 
@@ -272,6 +269,8 @@ function ScripTracker () {
 	 *
 	 */
 	function playRow () {	
+		var row = registers.currentRow;
+		
 		var samplesL = [];
 		var samplesR = [];
 
@@ -279,82 +278,86 @@ function ScripTracker () {
 			
         	if (pattern.sample[row][c] != 0) {
 				//if (channelSample[c] != module.samples[pattern.sample[row][c] - 1]) {
-	            	channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
-                    sampleRemain[c]  = channelSample[c].sampleLength;					// Repeat length of this sample
-                    samplePos[c]     = 0;                                          		// Restart sample
+	            	registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
+                    registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
+                    registers.samplePos[c]     = 0;                                          	// Restart sample
 				//}
 				
 				if (module.type != "mod") {
-					channelPan[c] = channelSample[c].panning;							// Set default panning for sample
+					registers.channelPan[c] = registers.channelSample[c].panning;				// Set default panning for sample
 				}
 				
 				// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
 				if (pattern.volume[row][c] > -1) {
-					sampleVolume[c] = pattern.volume[row][c];
+					registers.sampleVolume[c] = pattern.volume[row][c];
 				} else {
-					sampleVolume[c] = channelSample[c].volume;	
+					registers.sampleVolume[c] = registers.channelSample[c].volume;	
 				}
 			}
 			
 			// If we do have a sample and the volume on the row > 0 then use this as sample volume.
-			if (channelSample[c] != null && pattern.volume[row][c] > 0) {
-				sampleVolume[c] = pattern.volume[row][c];
+			registers.tremolo[c] = 1.0;		// Also reset tremolo :)
+			if (registers.channelSample[c] != null && pattern.volume[row][c] > 0) {
+				registers.sampleVolume[c] = pattern.volume[row][c];
 			}
 
 		    if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
 				if (pattern.note[row][c] == 97) {
-					channelSample[c] = null;
-					channelPeriod[c] = 0;
-				} else if (channelSample[c] != null) {
-					channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - channelSample[c].basePeriod) * 64 - channelSample[c].fineTune / 2;
-					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[c]) / 768);
+					registers.channelSample[c] = null;
+					registers.channelPeriod[c] = 0;
+				} else if (registers.channelSample[c] != null) {
+					registers.channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - registers.channelSample[c].basePeriod) * 64 - registers.channelSample[c].fineTune / 2;
+					var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[c]) / 768);
 					
-					samplePos[c]     = 0;											// Restart sample
-                    noteDelay[c]     = 0;											// Reset note delay
-			    	sampleRemain[c]  = channelSample[c].sampleLength;				// Repeat length of this sample
-					sampleStep[c]    = freq / (samplesPerTick * 3);					// Samples per division
+					registers.samplePos[c]     = 0;														// Restart sample
+                    registers.noteDelay[c]     = 0;														// Reset note delay
+			    	registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;				// Repeat length of this sample
+					registers.sampleStep[c]    = freq / (registers.samplesPerTick * 3);					// Samples per division
 				}
 			}
 		}
 		
-		for (var t = 0; t < ticksPerRow; t ++) {
+		for (var t = 0; t < registers.ticksPerRow; t ++) {
+			registers.currentTick = t;
+			
 			for (var c = 0; c < module.channels; c ++) {
 				// Process effects.
-				handleEffect (row, c, t);
+				var param = pattern.effectParam[registers.currentRow][c];
+				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);
 
 				// Generate samples for current tick and channel.
-				var sIndex = samplesPerTick * t;
-				for (var s = 0; s < samplesPerTick; s ++) {
+				var sIndex = registers.samplesPerTick * t;
+				for (var s = 0; s < registers.samplesPerTick; s ++) {
 					if (c == 0) {
 						samplesL[sIndex] = 0.0;
 						samplesR[sIndex] = 0.0;
 					}
 
-			        if (channelSample[c] != null && noteDelay[c] == 0 && !channelMute[c]) {
-			            var sample = channelSample[c].sample[Math.floor (samplePos[c])] * sampleVolume[c];
+			        if (registers.channelSample[c] != null && registers.noteDelay[c] == 0 && !registers.channelMute[c]) {
+			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])] * registers.sampleVolume[c];
 
-						if (channelPan[c] <= 1.0) {
+						if (registers.channelPan[c] <= 1.0) {
 							// Normal panning.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - channelPan[c]) + tremolo[c], 1.0)) * masterVolume;
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample * channelPan[c] + tremolo[c], 1.0)) * masterVolume;
+							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - registers.channelPan[c]) * registers.tremolo[c], 1.0)) * registers.masterVolume;
+                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample *        registers.channelPan[c]  * registers.tremolo[c], 1.0)) * registers.masterVolume;
 						} else {
 							// Surround sound.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5 + tremolo[c], 1.0)) * masterVolume;
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5 + tremolo[c], 1.0)) * masterVolume;
+							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5 * registers.tremolo[c], 1.0)) * registers.masterVolume;
+                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5 * registers.tremolo[c], 1.0)) * registers.masterVolume;
 						}
 
-						samplePos[c]    += sampleStep[c];
-						sampleRemain[c] -= sampleStep[c];
+						registers.samplePos[c]    += registers.sampleStep[c];
+						registers.sampleRemain[c] -= registers.sampleStep[c];
 
 						// Loop or stop the sample when we reach its end.
-						if (sampleRemain[c] <= 0) {
-						    if (channelSample[c].loopType == channelSample[c].LOOP_FORWARD) {
-						    	samplePos[c]    = channelSample[c].loopStart  - sampleRemain[c];
-						    	sampleRemain[c] = channelSample[c].loopLength + sampleRemain[c];
+						if (registers.sampleRemain[c] <= 0) {
+						    if (registers.channelSample[c].loopType == registers.channelSample[c].LOOP_FORWARD) {
+						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
+						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
 							} else {
-							    samplePos[c]    = channelSample[c].sampleLength - 1;
-						    	sampleStep[c]   = 0;
-								sampleVolume[c] = 0.0;
+							    registers.samplePos[c]    = registers.channelSample[c].sampleLength - 1;
+						    	registers.sampleStep[c]   = 0;
+								registers.sampleVolume[c] = 0.0;
 							}
 						}
 					}
@@ -363,11 +366,11 @@ function ScripTracker () {
 				}
 				
 				// If a note delay is set decrease it.
-				noteDelay[c] = Math.max (0, noteDelay[c] - 1);
+				registers.noteDelay[c] = Math.max (0, registers.noteDelay[c] - 1);
 			}
 		}
 
-		var audioBuffer = audioCtx.createBuffer (2, samplesL.length, sampleRate);
+		var audioBuffer = audioCtx.createBuffer (2, samplesL.length, registers.sampleRate);
 
 		var sourceL = audioCtx.createBufferSource (0);
 		audioBuffer.getChannelData (0).set (samplesL);
@@ -382,862 +385,63 @@ function ScripTracker () {
   		sourceR.noteOn (0);
 		
 		// If an order jump is encountered jump to row 1 of the order at the given index.
-		if (orderJump != -1 && !patternLoop) {
-			row        = -1;
-			orderIndex = Math.min (module.songLength - 1, orderJump);
-            pattern    = module.patterns[module.orders[orderIndex]];
+		if (registers.orderJump != -1 && !patternLoop) {
+			registers.currentRow = -1;
+			registers.orderIndex = Math.min (module.songLength - 1, registers.orderJump);
+            pattern              = module.patterns[module.orders[registers.orderIndex]];
 		}
 		
 		// Handle pattern break if there is one.
-		if (breakPattern != -1) {
-			row = breakPattern - 1;
+		if (registers.breakPattern != -1) {
+			registers.currentRow = registers.breakPattern - 1;
 			
-
 			// Only handle pattern break when not looping a pattern.
-			if (!this.repeatOrder && orderJump == -1) {
-				orderIndex ++;
+			if (!this.repeatOrder && registers.orderJump == -1) {
+				registers.orderIndex ++;
 
 				// Handle the skip order marker.
-				while (module.orders[orderIndex] == 0xFE && orderIndex < module.songLength) {
-					orderIndex ++
+				while (module.orders[registers.orderIndex] == 0xFE && registers.orderIndex < module.songLength) {
+					registers.orderIndex ++
 				}
 				
 				// When we reach the end of the song jump back to the restart position.
-				if (orderIndex == module.songLength || module.orders[orderIndex] == 0xFF) {
-					orderIndex = module.restartPosition;
+				if (registers.orderIndex == module.songLength || module.orders[registers.orderIndex] == 0xFF) {
+					registers.orderIndex = module.restartPosition;
 				}
 				
-				pattern = module.patterns[module.orders[orderIndex]];
+				pattern = module.patterns[module.orders[registers.orderIndex]];
 			}
 		}
 		
 		// Jump to a particular row in the current pattern;
-		if (rowJump > -1) {
-			row = rowJump - 1;
-			rowJump = -1;
+		if (registers.rowJump > -1) {
+			registers.currentRow = registers.rowJump - 1;
+			registers.rowJump = -1;
 		}
 
-		orderJump    = -1;
-		breakPattern = -1;
-		row ++;
+		registers.orderJump    = -1;
+		registers.breakPattern = -1;
+		registers.currentRow ++;
 
 		// When we reach the end of our current pattern jump to the next one.
-		if (row == pattern.rows) {
-			row = 0;
-			if (!patternLoop) orderIndex ++;
+		if (registers.currentRow == pattern.rows) {
+			registers.currentRow = 0;
+			if (!patternLoop) registers.orderIndex = (registers.orderIndex + 1) % module.orders.length;
 
 			// Handle the skip order marker.
-			while (module.orders[orderIndex] == 0xFE && orderIndex < module.songLength) {
-				orderIndex ++
+			while (module.orders[registers.orderIndex] == 0xFE && registers.orderIndex < module.songLength) {
+				registers.orderIndex ++
 			}
 			
 			// When we reach the end of the song jump back to the restart position.
-			if (orderIndex == module.songLength || module.orders[orderIndex] == 0xFF) {
-				orderIndex = module.restartPosition;
+			if (registers.orderIndex == module.songLength || module.orders[registers.orderIndex] == 0xFF) {
+				registers.orderIndex = module.restartPosition;
 			}
-            pattern = module.patterns[module.orders[orderIndex]];
+            pattern = module.patterns[module.orders[registers.orderIndex]];
 		}
-	};
-	
-
-	/**
-	 * Handle the effect at the given row and channel. Handling of the effect depends on what effect we encounter and
-	 * at what tich we are in the current row.
-	 *
-	 * row     - Current row in the pattern
-	 * channel - The channel we are evaluating
-	 * tick    - Tick of the current row
-	 */
-	function handleEffect (row, channel, tick) {
-		var param = pattern.effectParam[row][channel];
-
-		switch (pattern.effect[row][channel]) {
-			
-			// Arpeggio varies the frequency of a note every tick depending on the parameters.
-			case Effects.ARPEGGIO:
-				var arpeggio;
-			
-				// Calculate periods to add depening on arpeggio parameters
-				if (tick % 3 == 0) {
-					arpeggio = 0;
-				} else if (tick % 3 == 1) {
-					arpeggio = ((param & 0xF0) >> 4) * 64;
-				} else if (tick % 3 == 2) {
-					arpeggio = (param & 0x0F) * 64;
-				}
-				
-				// Calculate new frequency.
-				var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel] + arpeggio) / 768);
-				sampleStep[channel]    = freq / (samplesPerTick * 3);
-			
-				break;
-
-			// Note porta up. The rate at which the period of the note is being slid up is quadruppled.
-			case Effects.PORTA_UP:
-				if (tick == 0 && param != 0) {
-					portaStep[channel] = param * 4
-				} else if (tick > 0) {
-					channelPeriod[channel] -= portaStep[channel];
-					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
-					sampleStep[channel]    = freq / (samplesPerTick * 3);
-				}	
-						
-				break;
-				
-			// Note porta down. The porta rate is being quadruppled.
-			case Effects.PORTA_DOWN:
-				if (tick == 0 && param != 0) {
-					portaStep[channel] = param * 4;
-				} else if (tick > 0) {
-					channelPeriod[channel] += portaStep[channel];
-					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
-					sampleStep[channel]    = freq / (samplesPerTick * 3);
-				}
-				
-				break;
-				
-			// Porta to the given note with the given porta speed on each tick. Once the target period is reached stop
-			// the porta effct. Porta speed is quadruppled.
-			case Effects.TONE_PORTA:
-				// Set porta speed if param is present.
-				if (tick == 0 && param != 0) {
-					portaStep[channel] = param * 4;
-				}
-				
-				// Set note to porta to if present.
-				if (tick == 0 && pattern.note[row][channel] != 0) {
-					portaNote[channel] = 7680 - (pattern.note[row][channel] - 25 - channelSample[channel].basePeriod) * 64 - channelSample[channel].fineTune / 2;
-				}
-
-				// Porta up or down depending on current note period and target period.
-				if (channelPeriod[channel] < portaNote[channel]) {
-					channelPeriod[channel] += portaStep[channel];
-					
-					// When the target period is reached stop porta.
-					if (channelPeriod[channel] > portaNote[channel]) {
-						channelPeriod[channel] = portaNote[channel];
-					}
-				} else if (channelPeriod[channel] > portaNote[channel]) {
-					channelPeriod[channel] -= portaStep[channel];
-					
-					// When the target period is reached stop porta.
-					if (channelPeriod[channel] < portaNote[channel]) {
-						channelPeriod[channel] = portaNote[channel];
-					}
-				}
-
-				// Calculate new sample step.
-				var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
-				sampleStep[channel] = freq / (samplesPerTick * 3);
-			
-				break;
-				
-			// Note vibrato using a sine function with an amplitude of a given number of finetunes and a given speed.
-			case Effects.VIBRATO:
-				// At tick 0 and non zero parameter reset vibrato sine and set new parameters.
-				if (tick == 0 && param != 0) {
-					// Set vibrato step if parameter non zero.
-					if ((param & 0xF0) != 0) {
-						vibratoStep[channel] = (2 * Math.PI) * (((param & 0xF0) >> 4) * ticksPerRow) / 64.0;
-					}
-					
-					// Set vibrato amplitude if parameter non zero.
-					if ((param & 0x0F) != 0) {
-						vibratoAmp[channel]  = (param & 0x0F) * 8;
-					}
-					
-					vibratoPos[channel]  = 0;
-				} 
-											
-				//  Calculate new note frequency and advance vibrato sine pos.
-				var vibrato = Math.sin (vibratoPos[channel]) * vibratoAmp[channel];
-				var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel] + vibrato) / 768);
-				sampleStep[channel] = freq / (samplesPerTick * 3);
-				
-				vibratoPos[channel] += vibratoStep[channel];
-			
-				break;
-
-				
-			// Slide the volume up or down on every tick except the first and porta to the note that was set by the
-			// tone porta effect. Parameter values > 127 will slide up, lower values slide down.
-			case Effects.TONE_PORTA_VOL_SLIDE:
-				// Set note to porta to if present.
-				if (tick == 0 && pattern.note[row][channel] != 0) {
-					portaNote[channel] = 7680 - (pattern.note[row][channel] - 25 - channelSample[channel].basePeriod) * 64 - channelSample[channel].fineTune / 2;
-				}
-			
-				// Porta up or down depending on current note period and target period.
-				if (channelPeriod[channel] < portaNote[channel]) {
-					channelPeriod[channel] += portaStep[channel];
-				
-					// When the target period is reached stop porta.
-					if (channelPeriod[channel] > portaNote[channel]) {
-						channelPeriod[channel] = portaNote[channel];
-					}
-				} else if (channelPeriod[channel] > portaNote[channel]) {
-					channelPeriod[channel] -= portaStep[channel];
-				
-					// When the target period is reached stop porta.
-					if (channelPeriod[channel] < portaNote[channel]) {
-						channelPeriod[channel] = portaNote[channel];
-					}
-				}
-				
-				// Calculate new sample step and set volume.
-				var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
-				sampleStep[channel] = freq / (samplesPerTick * 3);
-				
-				var slide = (((param & 0xF0) != 0) ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
-				sampleVolume[channel] = Math.max (0.0, Math.min (sampleVolume[channel] + slide, 1.0));
-			
-				break;
-				
-			// Note vibrato using previous vibrato parameters and do a volume slide using current parameter.
-			case Effects.VIBRATO_VOL_SLIDE:
-				// On tick 0 copy volume slide parameter if set.
-				if (tick == 0 && param != 0) {
-					volumeSlide[channel] = param;
-				}
-			
-				//  Calculate new note frequency and advance vibrato sine pos.
-				var vibrato = Math.sin (vibratoPos[channel]) * vibratoAmp[channel];
-				var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel] + vibrato) / 768);
-				sampleStep[channel] = freq / (samplesPerTick * 3);
-				
-				vibratoPos[channel] += vibratoStep[channel];
-				
-				// Set sample volume.
-				var slide = (((volumeSlide[channel] & 0xF0) != 0) ? (volumeSlide[channel] & 0xF0) >> 4 : -(volumeSlide[channel] & 0x0F)) / 64.0;
-				sampleVolume[channel] = Math.max (0.0, Math.min (sampleVolume[channel] + slide, 1.0));
-			
-				break;
-
-			// Tremolo effect
-			case Effects.TREMOLO:
-				// At tick 0 and non zero parameter reset tremolo sine and set new parameters.
-				if (tick == 0 && param != 0) {
-					// Set tremolo step if parameter non zero.
-					if ((param & 0xF0) != 0) {
-						tremoloStep[channel] = (2 * Math.PI) * (((param & 0xF0) >> 4) * ticksPerRow) / 64.0;
-					}
-					
-					// Set tremolo amplitude if parameter non zero.
-					if ((param & 0x0F) != 0) {
-						tremoloAmp[channel]  = (param & 0x0F) / 15;
-					}
-					
-					tremoloPos[channel]  = 0;
-				} 
-											
-				//  Calculate new volume delta and advance vibrato sine pos.
-				tremolo[channel]     = Math.sin (tremoloPos[channel]) * tremoloAmp[channel];				
-				tremoloPos[channel] += tremoloStep[channel];
-				break;
-				
-			// Set panning for this channel. 0x00 - left, 0x40 - middle, 0x80 - right. Anything greater than 0x80 
-			// couses surround sound on the current channel.
-			case Effects.SET_PAN:
-				if (tick == 0) {
-					channelPan[channel] = param / 128.0;
-				}
-			
-				break;
-
-			// Set sample offset in words.
-			case Effects.SAMPLE_OFFSET:
-				if (tick == 0) {
-					samplePos[channel]     = param * 256;
-					sampleRemain[channel] -= param * 256;
-				}
-
-				break;
-				
-			// Slide the volume up or down on every tick except the first. Parameter values > 127 will slide up, lower
-			// values slide down.
-			case Effects.VOLUME_SLIDE:
-    			if (tick > 0 && volumeSlide[channel] != 0) {
-					if ((volumeSlide[channel] & 0xF0) == 0xF0 && (volumeSlide[channel] & 0x0F) != 0x00) {
-						// Fine volume slide down only on tick 1.
-						if (tick == 1) {
-							var slide = (volumeSlide[channel] & 0x0F) / 64.0;
-							sampleVolume[channel] = Math.max (0.0, sampleVolume[channel] - slide);
-						}
-					} else if ((volumeSlide[channel] & 0x0F) == 0x0F && (volumeSlide[channel] & 0xF0) != 0x00) {
-						// Fine volume slide up only on tick 1.
-						if (tick == 1) {
-							var slide = ((volumeSlide[channel] & 0xF0) >> 4) / 64.0;
-							sampleVolume[channel] = Math.min (1.0, sampleVolume[channel] + slide);
-						}
-					} else {
-						// Normal volume slide.
-						var slide = (((volumeSlide[channel] & 0xF0) != 0) ? (volumeSlide[channel] & 0xF0) >> 4 : -(volumeSlide[channel] & 0x0F)) / 64.0;
-						sampleVolume[channel] = Math.max (0.0, Math.min (sampleVolume[channel] + slide, 1.0));
-					}
-				} else if (tick == 0 && param != 0) {
-					// On tick 0 copy parameter if set.
-					volumeSlide[channel] = param;
-				}
-
-				break;
-
-			// After this row jump to row 1 of the given order.
-			case Effects.POSITION_JUMP:				
-				if (tick == 0) {
-					orderJump = param;
-				}
-
-				break;
-				
-            // Set the volume of a channel on the first tick according to the given parameter.
-			case Effects.SET_VOLUME:
-				if (tick == 0) {
-					sampleVolume[channel] = Math.max (0.0, Math.min (param / 64.0, 1.0));
-				}
-
-				break;
-
-			// At the end of this row jump to the next order and start playing at the row given in the parameter.
-			case Effects.PATTERN_BREAK:
-				if (tick == 0) {
-                    breakPattern = ((param & 0xF0) >> 4) * 10 + (param & 0x0F);
-				}
-
-				break;
-				
-			// Slide note pitch up only on the first tick.
-			case Effects.FINE_PORTA_UP:
-				if (tick == 0) {
-					// If param value present change porta step.
-					if (param & 0x0F != 0) {
-						portaStep[channel] = (param & 0x0F) * 4;
-					}
-					
-					// Slide pitch up.
-					channelPeriod[channel] -= portaStep[channel];
-					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
-					sampleStep[channel]    = freq / (samplesPerTick * 3);
-				}
-			
-				break;
-				
-			// Slide note pitch down only on the first tick.
-			case Effects.FINE_PORTA_DOWN:
-				if (tick == 0) {
-					// If param value present change porta step.
-					if (param & 0x0F != 0) {
-						portaStep[channel] = (param & 0x0F) * 4;
-					}
-
-					// Slide pitch down.
-					channelPeriod[channel] += portaStep[channel];
-					var freq = 8363 * Math.pow (2, (4608 - channelPeriod[channel]) / 768);
-					sampleStep[channel]    = freq / (samplesPerTick * 3);
-				}
-
-				break;
-
-			// Set the finetune of the sample playing on the current channel.
-			case Effects.SET_FINETUNE:
-				if (tick == 0 && channelSample[channel] != null) {
-					channelSample[channel].fineTune = param & 0x0F;
-				}
-				
-				break;
-				
-			// Pattern section loop.
-			case Effects.SET_LOOP:
-				if (tick == 0) {
-					if ((param & 0x0F) == 0) {
-						loopMark[channel] = row;
-					} else {
-						if (loopCount[channel] == 0) {
-							loopCount[channel] = (param & 0x0F);
-						} else {
-							loopCount[channel] --;
-						}
-						
-						if (loopCount[channel] > 0) {
-							rowJump = loopMark[channel];
-						}
-					}
-				}
-				
-				break;
-				
-			// Set panning for this channel. 0x00 - left --> 0x0F - right.
-			case Effects.SET_PAN_16:
-				if (tick == 0) {
-					channelPan[channel] = (param & 0x0F) / 15.0;
-				}
-			
-				break;
-				
-			// Retrigger the note ever param ticks.
-			case Effects.RETRIGGER:
-				if (tick % (param & 0x0F) == 0) {
-					sampleRemain[channel]  = channelSample[channel].sampleLength;
-                    samplePos[channel]     = 0;
-				}
-			
-				break;
-				
-			// At the first tick of the row add x to the volume.
-			case Effects.FINE_VOL_SLIDE_UP:
-				if (tick == 0) {
-					sampleVolume[channel] = Math.min (sampleVolume[channel] + (param & 0x0F) / 15.0, 1.0);
-				}
-				
-				break;
-			
-			// At the first tick of the row subtract x from the volume.
-			case Effects.FINE_VOL_SLIDE_DOWN:
-				if (tick == 0) {
-					sampleVolume[channel] = Math.max (0.0, sampleVolume[channel] - (param & 0x0F) / 15.0);
-				}
-				
-				break;
-				
-			// Cut the volume of the note to 0 if the current tick equals the parameter value.
-			case Effects.CUT_NOTE:
-				if (tick == (param & 0x0F)) {
-					sampleVolume[channel] = 0.0;
-				}
-			
-				break;
-				
-			// Set the number of ticks to wait before starting the note.
-			case Effects.DELAY_NOTE:
-				noteDelay[channel] = (param & 0x0F);
-			
-				break;
-
-			// Set BMP or tempo on the first tick according to the parameter of the effect. A value greater than 32 will
-			// change the BPM, other values change the tempo.
-			case Effects.SET_TEMPO_BPM:
-				if (tick == 0) {
-					if (param <= 32) {
-						setSpeed (bpm, param);
-					} else {
-					    setSpeed (param, ticksPerRow);
-					}
-				}
-
-				break;
-
-			// No effect or unknown effect.
-			default:
-				if (pattern.effect[row][channel] != ".") {
-					//console.log (pattern.effect[row][channel] + " - " + param);
-				}
-				break;
-		}
-	};
-	
-	
-	function setSpeed (beats, ticks) {
-	    ticksPerRow = ticks;
-	    bpm         = beats;
-		
-        var rpm = (24 * bpm) / ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
-		var tpm = rpm * ticksPerRow;
-
-		rowDelay     = 60000 / rpm;				// Number of milliseconds in one row.
-
-		samplesPerTick = Math.round (sampleRate / (tpm / 60));
-	};
-	
-	
-	// TODO: Remove this debug function.
-	this.setSpeed = function (beats, ticks) {
-		setSpeed (beats, ticks);
 	};
 }
 
-
-/**
- * Load MOD file data as a Module so it can be played by ScripTracker.
- *
- * fileData - String contents of the MOD file.
- */
-function ModLoader (fileData) {
-	var mod = new Module ();
-	mod.type = "mod";
-
-	// Note period lookup table.
-	var notePeriods = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 906,
-	 				   856 , 808 , 762 , 720 , 678 , 640 , 604 , 570 , 538 , 508 , 480, 453,
-	 				   428 , 404 , 381 , 360 , 339 , 320 , 302 , 285 , 269 , 254 , 240, 226,
-	 				   214 , 202 , 190 , 180 , 170 , 160 , 151 , 143 , 135 , 127 , 120, 113,
-	 				   107 , 101 , 95  , 90  , 85  , 80  , 75  , 71  , 67  , 63  , 60 , 56 ];
-
-	// Find out the number of channels in this mod.
-    switch (fileData.substring (1080, 1084)) {
-    	case "6CHN":
-			mod.channels = 6;
-	 	    break;
-		case "FLT8":
-		case "8CHN":
-		case "CD81":
-		case "OKTA":
-	 	    mod.channels = 8;
-	 	    break;
-		case "16CN":
-			mod.channels = 16;
-			break;
-		case "32CN":
-			mod.channels = 32;
-			break;
-		default:
-		    mod.channels = 4;
-			break;
-	}
-
-	// Load general module info.
-	mod.name            = fileData.substring  (0, 20);
-	mod.songLength      = fileData.charCodeAt (950);
-	mod.restartPosition = fileData.charCodeAt (951);
-
-	// Create samples and add them to the module.
-    for (var i = 0; i < 31; i ++) {
-		var sampleHeader = fileData.substring (20 + i * 30, 50 + i * 30);
-
-		var sample = new Sample ();
-		sample.name         = sampleHeader.substring (0, 22);
-        sample.sampleLength = (sampleHeader.charCodeAt (22) * 256 + sampleHeader.charCodeAt (23)) * 2;
-		sample.fineTune     = (sampleHeader.charCodeAt (24) & 0x0F);
-		sample.volume       = (Math.min (sampleHeader.charCodeAt (25), 64.0)) / 64.0;
-		sample.loopStart	= (sampleHeader.charCodeAt (26) * 256 + sampleHeader.charCodeAt (27)) * 2;
-		sample.loopLength	= (sampleHeader.charCodeAt (28) * 256 + sampleHeader.charCodeAt (29)) * 2;
-		sample.loopType     = (sample.loopLength > 1) ? sample.LOOP_FORWARD : sample.LOOP_NONE;
-		
-		if (sample.fineTune > 7) sample.fineTune -= 16;
-		sample.fineTune *= 16;
-		mod.samples.push (sample);
-	}
-
-	// Fill the order table and get the number of patterns in this mod
-    var patternCount = 0;
-    for (var i = 0; i < 128; i ++) {
-		mod.orders[i] = fileData.charCodeAt (952 + i);
-	    patternCount  = Math.max (patternCount, mod.orders[i] + 1);
-	}
-
-	// Load all patterns
-    var patternLength = mod.channels * 256;
-	for (var i = 0; i < patternCount; i ++) {
-		var patternHeader = fileData.substring (1084 + i * patternLength, 1084 + i * patternLength + patternLength);
-
-		// Create pattern and set number of rows and channels.
-		var pattern = new Pattern (64, mod.channels);
-
-		// Load pattern data.
-        for (var r = 0; r < 64; r ++) {
-		    for (var c = 0; c < mod.channels; c ++) {
-		        var offset = r * mod.channels * 4 + c * 4;
-				var byte1 = patternHeader.charCodeAt (offset);
-				var byte2 = patternHeader.charCodeAt (offset + 1);
-				var byte3 = patternHeader.charCodeAt (offset + 2);
-				var byte4 = patternHeader.charCodeAt (offset + 3);
-
-				// Find the note number corresponding to the period.
-				var period = ((byte1 & 0x0F) * 256) | byte2;
-				if (period == 0) {
-					pattern.note[r][c] = 0;
-				} else if (period > notePeriods[0]) {
-					// Prevent notes that are too low.
-                    pattern.note[r][c] = 1;
-				} else if (period <= notePeriods[notePeriods.length - 1]) {
-					// Prevent notes that are too high.
-                    pattern.note[r][c] = 60;
-				} else {
-					// Find the note that closest matches the period.
-					for (var p = 0; p < notePeriods.length - 1; p ++) {
-						/*
-						if (period <= notePeriods[p] && period > notePeriods[p + 1]) {
-							var dLow = period - notePeriods[p];
-							var dHi  = notePeriods[p + 1] - period;
-
-	                    	pattern.note[r][c] = (dLow <= dHi) ? p + 1 : p + 2;
-							break;
-						}
-						*/
-						if (period == notePeriods[p]) {
-							pattern.note[r][c] = p + 1;
-							break;
-						}
-					}
-				}
-
-				pattern.sample[r][c]      = (byte1 & 0xF0) | ((byte3 & 0xF0) / 16);
-				pattern.volume[r][c]      = -1;
-				
-                pattern.effectParam[r][c] = byte4;
-				if ((byte3 & 0x0F) == 0 && byte4 != 0) {
-					pattern.effect[r][c] = Effects.ARPEGGIO;
-				} else if ((byte3 & 0x0F) == 1) {
-					pattern.effect[r][c] = Effects.PORTA_UP;
-                } else if ((byte3 & 0x0F) == 2) {
-					pattern.effect[r][c] = Effects.PORTA_DOWN;
-                } else if ((byte3 & 0x0F) == 3) {
-					pattern.effect[r][c] = Effects.TONE_PORTA;
-                } else if ((byte3 & 0x0F) == 4) {
-					pattern.effect[r][c] = Effects.VIBRATO;
-                } else if ((byte3 & 0x0F) == 5) {
-					pattern.effect[r][c] = Effects.TONE_PORTA_VOL_SLIDE;
-                } else if ((byte3 & 0x0F) == 6) {
-					pattern.effect[r][c] = Effects.VIBRATO_VOL_SLIDE;
-                } else if ((byte3 & 0x0F) == 7) {
-					pattern.effect[r][c] = Effects.TREMOLO;
-                } else if ((byte3 & 0x0F) == 8) {
-					pattern.effect[r][c] = Effects.SET_PAN;
-                } else if ((byte3 & 0x0F) == 9) {
-					pattern.effect[r][c] = Effects.SAMPLE_OFFSET;
-                } else if ((byte3 & 0x0F) == 10) {
-					pattern.effect[r][c] = Effects.VOLUME_SLIDE;
-                } else if ((byte3 & 0x0F) == 11) {
-					pattern.effect[r][c] = Effects.POSITION_JUMP;
-                } else if ((byte3 & 0x0F) == 12) {
-					pattern.effect[r][c] = Effects.SET_VOLUME;
-                } else if ((byte3 & 0x0F) == 13) {
-					pattern.effect[r][c] = Effects.PATTERN_BREAK;
-				} else if ((byte3 & 0x0F) == 14) {
-					switch ((byte4 & 0xF0) >> 4) {
-						case 0:
-							pattern.effect[r][c] = Effects.SET_FILTER;
-							break;
-						case 1:
-							pattern.effect[r][c] = Effects.FINE_PORTA_UP;
-							break;
-						case 2:
-							pattern.effect[r][c] = Effects.FINE_PORTA_DOWN;
-							break;
-						case 3:
-							pattern.effect[r][c] = Effects.SET_GLISANDO;
-							break;
-						case 4:
-							pattern.effect[r][c] = Effects.SET_VIBRATO;
-							break;
-						case 5:
-							pattern.effect[r][c] = Effects.SET_FINETUNE;
-							break;
-						case 6:
-							pattern.effect[r][c] = Effects.SET_LOOP;
-							break;
-						case 7:
-							pattern.effect[r][c] = Effects.SET_TREMOLO;
-							break;
-						case 8:
-							pattern.effect[r][c] = Effects.SET_PAN_16;
-							break;
-						case 9:
-							pattern.effect[r][c] = Effects.RETRIGGER;
-							break;
-						case 10:
-							pattern.effect[r][c] = Effects.FINE_VOL_SLIDE_UP;
-							break;
-						case 11:
-							pattern.effect[r][c] = Effects.FINE_VOL_SLIDE_DOWN;
-							break;
-						case 12:
-							pattern.effect[r][c] = Effects.CUT_NOTE;
-							break;
-						case 13:
-							pattern.effect[r][c] = Effects.DELAY_NOTE;
-							break;
-						case 14:
-							pattern.effect[r][c] = Effects.DELAY_PATTERN;
-							break;						
-						default:
-							pattern.effect[r][c] = Effects.NONE;
-							break;
-					}
-                } else if ((byte3 & 0x0F) == 15) {
-					pattern.effect[r][c] = Effects.SET_TEMPO_BPM;
-    			} else {
-					pattern.effect[r][c] = Effects.NONE;
-				}
-			}
-		}
-
-		mod.patterns.push (pattern);
-	}
-
-	// Load sample data.
-    var filePos = patternCount * patternLength + 1084;
-	for (var i = 0; i < mod.samples.length; i ++) {
-	    mod.samples[i].loadSample (fileData.substring (filePos, filePos + mod.samples[i].sampleLength), false, mod.signedSample);
-        mod.samples[i].sample[0] = 0;
-        mod.samples[i].sample[1] = 0;
-
-	    filePos += mod.samples[i].sampleLength;
-	}
-
-	return mod;
-}
-
-
-function S3mLoader (fileData) {
-	mod = new Module ();
-	mod.type     = "s3m";
-	mod.channels = 32;
-
-	mod.name         = fileData.substring (0, 28);
-	mod.songLength   = fileData.charCodeAt (32) + fileData.charCodeAt (33) * 256;
-	mod.sampleCount  = fileData.charCodeAt (34) + fileData.charCodeAt (35) * 256;
-	mod.patternCount = fileData.charCodeAt (36) + fileData.charCodeAt (37) * 256;
-	mod.signedSample = (fileData.charCodeAt (42) == 1) ? true : false;
-
-	this.volumeSlideFlag = (fileData.charCodeAt (38) & 0x40) != 0 || fileData.charCodeAt (40) == 0x00;
-	mod.defaultVolume = fileData.charCodeAt (48) / 64.0;
-	mod.defaultTempo  = fileData.charCodeAt (49) == 0 ?   6 : fileData.charCodeAt (49);
-	mod.defaultBPM    = fileData.charCodeAt (50) < 33 ? 125 : fileData.charCodeAt (50);
-	mod.defaultVolume = fileData.charCodeAt (51) / 64.0;
-
-	// Load order table.
-	for (var i = 0; i < mod.songLength; i ++) {
-		mod.orders[i] = fileData.charCodeAt (96 + i);
-	}
-
-	var samplePtrOffset  = 96 + mod.songLength;
-    var patternPtrOffset = 96 + mod.songLength + mod.sampleCount * 2;
-
-	// Load samples.
-	for (var i = 0; i < mod.sampleCount; i ++) {
-		var sampleOffset = (fileData.charCodeAt (samplePtrOffset + i * 2) + fileData.charCodeAt (samplePtrOffset + i * 2 + 1) * 256) * 16;
-		var sampleData   = fileData.substring (sampleOffset, sampleOffset + 80);
-		var sample       = new Sample ();
-		
-		sample.sampleIndex  = i;
-		sample.name         = sampleData.substring (48, 76);
-		sample.sampleLength = sampleData.charCodeAt (16) + sampleData.charCodeAt (17) * 256;
-		sample.loopStart    = sampleData.charCodeAt (20) + sampleData.charCodeAt (21) * 256;
-		sample.loopLength   = (sampleData.charCodeAt (24) + sampleData.charCodeAt (25) * 256) - sample.loopStart;
-		sample.volume       = sampleData.charCodeAt (28) / 64.0;
-		sample.loopType     = ((sampleData.charCodeAt (31) & 0x01) != 0) ? sample.LOOP_FORWARD : sample.LOOP_NONE;
-
-		// Calculate the base note from C4 frequency
-		sample.basePeriod = (sampleData.charCodeAt (32) + sampleData.charCodeAt (33) * 256);
-		sample.basePeriod = (sample.basePeriod) / 8363;
-		sample.basePeriod = (Math.log (sample.basePeriod) / Math.log (2)) * 768 + 3072;
-		sample.basePeriod = -(Math.round (sample.basePeriod / 64) - 72);
-		
-		var dataOffset = sampleData.charCodeAt (14) * 16 + sampleData.charCodeAt (15) * 4096;
-		var is16Bit    = (sampleData.charCodeAt (31) & 0x04) != 0;
-		var dataLength = sample.sampleLength * ((is16Bit) ? 2 : 1);
-
-		if ((sampleData.charCodeAt (31) & 0x02) == 0) {
-			// Load mono sample data.
-			sample.loadSample (fileData.substring (dataOffset, dataOffset + dataLength), is16Bit, mod.signedSample);
-		} else {
-			// Load stereo sample data.
-			sample.loadStereoSample (fileData.substring (dataOffset, dataOffset + dataLength), is16Bit, mod.signedSample);
-		}
-		
-		mod.samples.push (sample);
-	}
-	
-	// Load patterns.
-	for (var p = 0; p < mod.patternCount; p ++) {
-        var patternOffset = (fileData.charCodeAt (patternPtrOffset + p * 2) + fileData.charCodeAt (patternPtrOffset + p * 2 + 1) * 256) * 16;
-		var patternLength = fileData.charCodeAt (patternOffset) + fileData.charCodeAt (patternOffset + 1) * 256;
-		var patternData   = fileData.substring (patternOffset, patternOffset + patternLength);
-		
-		var pattern = new Pattern (64, mod.channels);
-		
-		var pos = 2;
-		var i = 0;
-		while (i != 64) {
-			var data = patternData.charCodeAt (pos);
-
-			if (data != 0x00) {
-				var channel = data & 0x1F;					
-
-				if ((data & 0x20) != 0) {
-					pos ++;
-					if (patternData.charCodeAt (pos) == 0xFE) {
-						// Stop note.
-						pattern.note[i][channel] = 97;
-					} else if (patternData.charCodeAt (pos) == 0xFF) {
-						// Empty note.
-						pattern.note[i][channel] = 0;
-					} else {
-						// Normal note.
-						var octave = Math.floor (patternData.charCodeAt (pos) / 16) * 12;
-	                	pattern.note[i][channel] = (patternData.charCodeAt (pos) % 16) + octave + 1;
-					}
-
-					pattern.sample[i][channel] = patternData.charCodeAt (++pos);
-				}
-
-				if ((data & 0x40) != 0) {
-					pattern.volume[i][channel] = patternData.charCodeAt (++pos) / 64.0;
-				} else {
-					pattern.volume[i][channel] = -1;
-				}
-
-				if ((data & 0x80) != 0) {
-					pos ++;
-					
-					if (patternData.charCodeAt (pos) == 1) {
-						pattern.effect[i][channel] = Effects.SET_TEMPO_BPM;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					} else if (patternData.charCodeAt (pos) == 2) {
-						pattern.effect[i][channel] = Effects.POSITION_JUMP;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					} else if (patternData.charCodeAt (pos) == 3) {
-						pattern.effect[i][channel] = Effects.PATTERN_BREAK;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					} else if (patternData.charCodeAt (pos) == 4) {
-						pattern.effect[i][channel] = Effects.VOLUME_SLIDE;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					} else if (patternData.charCodeAt (pos) == 5) {
-						pattern.effect[i][channel] = Effects.PORTA_DOWN;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-						
-						if (pattern.effectParam[i][channel] >= 240) {
-							pattern.effectParam[i][channel] = Math.round ((pattern.effectParam[i][channel] % 16) / 16.0);
-						} else if (pattern.effectParam[i][channel] >= 224) {
-							pattern.effectParam[i][channel] = Math.round ((pattern.effectParam[i][channel] % 16) / 4.0);
-						}
-					} else if (patternData.charCodeAt (pos) == 6) {
-						pattern.effect[i][channel] = Effects.PORTA_UP;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-						
-						if (pattern.effectParam[i][channel] >= 240) {
-							pattern.effectParam[i][channel] = Math.round ((pattern.effectParam[i][channel] % 16) / 16.0);
-						} else if (pattern.effectParam[i][channel] >= 224) {
-							pattern.effectParam[i][channel] = Math.round ((pattern.effectParam[i][channel] % 16) / 4.0);
-						}
-					} else if (patternData.charCodeAt (pos) == 7) {
-						pattern.effect[i][channel] = Effects.TONE_PORTA;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					} else if (patternData.charCodeAt (pos) == 8) {
-						pattern.effect[i][channel] = Effects.VIBRATO;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					} else if (patternData.charCodeAt (pos) == 11) {
-						pattern.effect[i][channel] = Effects.VIBRATO_VOL_SLIDE;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-	    			} else {
-						console.log ("Unknown effect: " + patternData.charCodeAt (pos));
-						pattern.effect[i][channel] = Effects.NONE;
-						pattern.effectParam[i][channel] = patternData.charCodeAt (++pos);
-					}
-					
-					//pattern.effect[i][channel] = patternData.charCodeAt (pos);
-				}
-			} else {			
-				i ++;				
-			}			
-			
-			pos ++;
-		}
-		
-		mod.patterns.push (pattern);
-	}
-	
-	return mod;
-}
 
 
 function ItLoader (fileData) {

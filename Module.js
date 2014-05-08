@@ -8,9 +8,17 @@
  * Version: 1.0.0
  * Date:    14-02-2013
  */
-function Module () {
+var ModTypes = {
+	mod: 0,
+	s3m: 1,
+	it:  2,
+	xm:  3
+};
+
+ 
+ function Module () {
 	this.name = "";                     // Name of this song
-	this.type = "";						// Module type (mod, s3m, it, xm)
+	this.type = null;					// Module type (mod, s3m, it, xm)
 
 	this.songLength      = 0;           // Number of orders in the order table
 	this.restartPosition = 0;           // Index in order table to jump to at song end
@@ -27,5 +35,4 @@ function Module () {
 	this.defaultTempo  = 6;             // Default number of ticks per row
 	this.defaultBPM    = 125;           // Default BPM
 	this.defaultVolume = 1.0;           // Default global volume
-	this.useAmigaFreq  = true;          // User Amiga frequency table if true of linear frequencies if false
 }

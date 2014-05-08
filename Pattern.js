@@ -48,7 +48,7 @@ function Pattern (rows, columns) {
 	 * row     - Index of row to export
 	 * channel - Index of channel to export
 	 */
-	this.toText = function (row, channel) {
+	this.toText = function (row, channel, modType) {
 		var text = "";
 
 		// Return an empty row if row or column index out of bounds.
@@ -89,7 +89,7 @@ function Pattern (rows, columns) {
 		text += " ";
 		
 		if (this.effect[row][channel] != Effects.NONE) {
-			text += this.effect[row][channel];
+			text += this.effect[row][channel].representations[modType];
 			if (text.length == 11) {
                	text += hexValues.charAt (Math.floor (this.effectParam[row][channel] / 16));
 			}

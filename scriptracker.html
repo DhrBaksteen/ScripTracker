@@ -13,6 +13,8 @@
 	<script type="text/javascript" src="Pattern.js"></script>
 	<script type="text/javascript" src="Sample.js"></script>
 	<script type="text/javascript" src="ScripTracker.js"></script>
+	<script type="text/javascript" src="ModLoader.js"></script>
+	<script type="text/javascript" src="S3mLoader.js"></script>
 	
 
 	  <script type="text/javascript">
@@ -20,6 +22,7 @@
 	    var player = null;
 		var playing = false;
 		var solo = false;
+		var scroll = 0;
 		var cellLookup = [];
 
 	    $(document).ready (function () {
@@ -132,36 +135,38 @@
 
 
             $("td[id^='tdPatHead']").click (function () {
-				var channel = $(this).attr ("id").split ("tdPatHead")[1];
+				var channel = Number ($(this).attr ("id").split ("tdPatHead")[1]);
 
-				if (channel < mod.channels) {
-					player.setMute (channel, !player.isMuted (channel));
+				if (channel + scroll < mod.channels) {
+					player.setMute (channel + scroll, !player.isMuted (channel + scroll));
 					
-					if (player.isMuted (channel)) {
+					if (player.isMuted (channel + scroll)) {
 						$(this).addClass ("patternRowHeaderMute");
 					} else {
 						$(this).removeClass ("patternRowHeaderMute");
 					}
 				}
 			});
-			
+	
 			
 			$("td[id^='tdPatHead']").bind ("contextmenu", function (e) {
-				var channel = $(this).attr ("id").split ("tdPatHead")[1];
+				var channel = Number ($(this).attr ("id").split ("tdPatHead")[1]);
+				if (channel + scroll >= mod.channels) return;
 
 				if (!solo) {
-					for (var i = 0; i < 32; i ++) {
-						$("td[id^='tdPatHead']").eq (i).addClass ("patternRowHeaderMute");
+					$("td[id^='tdPatHead']").addClass ("patternRowHeaderMute");
+					for (var i = 0; i < mod.channels; i ++) {						
 						player.setMute (i, true);
-					}
+					}					
 				
 					$(this).removeClass ("patternRowHeaderMute");
-					player.setMute (channel, false);
+					player.setMute (channel + scroll, false);
 					
 					solo = true;
 				} else {
-					for (var i = 0; i < 32; i ++) {
-						$("td[id^='tdPatHead']").removeClass ("patternRowHeaderMute");
+					$("td[id^='tdPatHead']").removeClass ("patternRowHeaderMute");
+					
+					for (var i = 0; i < mod.channels; i ++) {
 						player.setMute (i, false);
 					}
 					
@@ -171,6 +176,20 @@
 				return false;
 			});
 
+			
+			$("#btnScrollLeft").click (function () {
+				if (scroll > 0) {
+					setScroll (scroll - 1);
+				}
+			});
+			
+			
+			$("#btnScrollRight").click (function () {
+				if (scroll < 24) {
+					setScroll (scroll + 1);
+				}
+			});
+			
 
 			$(window).resize(function(){
 				$('.tracker').css ({
@@ -198,7 +217,7 @@
 			for (var i = firstRow; i < firstRow + 16; i ++) {
 				cellLookup [i - firstRow][0].text ((i < 10 ? "0" : "") + i);
 				for (var j = 0; j < 8; j ++) {					
-					cellLookup [i - firstRow][j + 1].text (data.pattern.toText (i, j));
+					cellLookup [i - firstRow][j + 1].text (data.pattern.toText (i, j + scroll, mod.type));
 					cellLookup [i - firstRow][j + 1].css ("background", (i % 4 == 0) ? "#202020" : "#000000");
 				}
 			}
@@ -215,9 +234,9 @@
 
 			// Set instruments and VU meters.
 			for (var i = 0; i < 8; i ++) {
-				$("#tdVuInst" + i).text (data.channel[i].instrument.substring (0, 13));
+				$("#tdVuInst" + i).text (player.isMuted (i + scroll) ? "** MUTE **" : data.channel[i + scroll].instrument.substring (0, 13));
 				$("#tdVuCell" + i + " div").each (function (j) {
-					var v = Math.round (data.channel[i].volume * 16);
+					var v = player.isMuted (i + scroll) ? -1 : Math.round (data.channel[i + scroll].volume * 16);
 					
 					if (j < 12) {
 						if (v > j) {
@@ -236,29 +255,24 @@
 			}
 		}
 
-
-		function updateVolumes () {
-			for (var i = 0; i < player.sampleVolume.length; i ++) {
-				 var vol = Math.round (player.sampleVolume[i] * 16) - 1;
-
-				 for (var j = 0; j < 16; j ++) {
-                     if (vol >= j && j < 12) {
-					 	$("#tdVuCell" + i + " div").eq (j).addClass ("vuGreenOn");
-					 } else if (vol < j && j < 12) {
-					 	$("#tdVuCell" + i + " div").eq (j).removeClass ("vuGreenOn");
-					 } else if (vol >= j && j >= 12) {
-					 	$("#tdVuCell" + i + " div").eq (j).addClass ("vuRedOn");
-					 } else if (vol < j && j >= 12) {
-					 	$("#tdVuCell" + i + " div").eq (j).removeClass ("vuRedOn");
-					 }
-				 }
+		
+		function setScroll (leftCol) {
+			scroll = leftCol;
+			
+			for (var i = 0; i < 8; i ++) {
+				$("#tdPatHead" + i).text ("Channel " + ((leftCol + i + 1 < 10) ? "0" : "") + (leftCol + i + 1));
+				if (player != null && player.isMuted (i + leftCol)) {
+					$("#tdPatHead" + i).addClass ("patternRowHeaderMute");
+				} else {					
+					$("#tdPatHead" + i).removeClass ("patternRowHeaderMute");
+				}
 			}
-
-			if (playing) {
-				setTimeout (function () {
-					updateVolumes ();
-				}, 10);
+			
+			if (player != null) {
+				playerUpdate (player);
 			}
+			
+			$("#scrollButton").css ("margin-left", ((892 / 24) * leftCol) + "px");
 		}
 	  </script>
   </head>
@@ -324,8 +338,8 @@
 				<table>
 					<tr>
 						<td class="logo">
-							Version 0.7.5<br/>
-							Copyright (c) 2013 Maarten Janssen
+							Version 0.8.0<br/>
+							Copyright (c) 2013-2014 Maarten Janssen
 						</td>
 					</tr>
 				</table>
@@ -387,9 +401,9 @@
 									<td colspan="9">
 										<table cellspacing="0" cellpadding="0" class="scrollTrack">
 											<tr>
-												<td><div class="smallButton btnScrollLeft"></div></td>
+												<td><div id="btnScrollLeft" class="smallButton btnScrollLeft"></div></td>
 												<td class="fullWidth"><div id="scrollButton" class="scrollButton"></div></td>
-												<td><div class="smallButton btnScrollRight"></div></td>
+												<td><div id="btnScrollRight" class="smallButton btnScrollRight"></div></td>
 											</tr>
 										</table>
 									</td>
