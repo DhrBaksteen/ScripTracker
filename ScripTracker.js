@@ -17,6 +17,7 @@ function ScripTracker () {
 		breakPattern: -1,				// Pattern break row to restart next order.
 		orderJump:    -1,				// Order jump index of next order.
 		rowJump:      -1,				// Row to jump to when looping
+		patternDelay:  0,				// Pattern delay will keep the player at the current row until 0.
 
 		channelMute:   [false, false, false, false, false, false, false, false,		// Channel muted flags.
 						false, false, false, false, false, false, false, false,
@@ -65,7 +66,54 @@ function ScripTracker () {
 		loopMark:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Row to jump to when looping.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		loopCount:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Loop counter per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+				
+		/**
+		 * Reset all registers to default. The unMute parameter dictates whether channel mute is also to be reset.
+		 */
+		reset: function (unMute) {
+			this.orderIndex  = 0;
+			this.currentRow  = 0;
+			this.currentTick = 0;
+			
+			this.sampleRate     = 22050;
+			this.bpm            = 0;
+			this.ticksPerRow    = 0;
+			this.samplesPerTick = 0;
+			this.rowDelay       = 0;
+			this.tickDuration   = 0;
+			this.masterVolume   = 0.9;
+			
+			this.breakPattern = -1;
+			this.orderJump    = -1;
+			this.rowJump      = -1;
+		
+			for (var i = 0; i < 32; i ++) {
+				if (unMute) {
+					this.channelMute  = false;
+				}
+				this.channelPeriod[i] = 0;
+				this.channelSample[i] = null;
+				this.channelPan[i]    = 0.5;
+				this.portaNote[i]     = 0;
+				this.portaStep[i]     = 0;
+				this.vibratoPos[i]    = 0;
+				this.vibratoStep[i]   = 0;
+				this.vibratoAmp[i]    = 0;
+				this.tremoloPos[i]    = 0;
+				this.tremoloStep[i]   = 0;
+				this.tremoloAmp[i]    = 0;
+				this.tremolo[i]       = 1;
+				this.volumeSlide[i]   = 0;
+				this.sampleVolume[i]  = 0;
+				this.samplePos[i]     = 0;
+				this.sampleStep[i]    = 0;
+				this.sampleRemain[i]  = 0;
+				this.noteDelay[i]     = 0;
+				this.loopMark[i]      = 0;
+				this.loopCount[i]     = 0;
+			}
+		}
 	};
 	
 	var module  = null;                 // Module file that is playing.
@@ -80,6 +128,7 @@ function ScripTracker () {
 
 
 	this.load = function (mod) {
+		registers.reset (true);
 		module = mod;
 		
 		if (module.type == "mod") {
@@ -255,6 +304,7 @@ function ScripTracker () {
 				playerThread ();
 			} catch (e) {
 				console.log ("A player error occurred!");
+				console.log (e);
 				console.log (registers);
 				isPlaying = false;
 			}
@@ -284,56 +334,72 @@ function ScripTracker () {
 		var samplesL = [];
 		var samplesR = [];
 
-		for (var c = 0; c < module.channels; c ++) {
-			
-        	if (pattern.sample[row][c] != 0) {
-				//if (channelSample[c] != module.samples[pattern.sample[row][c] - 1]) {
-	            	registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
-                    registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
-                    registers.samplePos[c]     = 0;                                          	// Restart sample
-				//}
-				
-				if (module.type != "mod") {
-					registers.channelPan[c] = registers.channelSample[c].panning;				// Set default panning for sample
-				}
-				
-				// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
-				if (pattern.volume[row][c] > -1) {
-					registers.sampleVolume[c] = pattern.volume[row][c];
-				} else {
-					registers.sampleVolume[c] = registers.channelSample[c].volume;	
-				}
-			}
-			
-			// If we do have a sample and the volume on the row > 0 then use this as sample volume.
-			registers.tremolo[c] = 1.0;		// Also reset tremolo :)
-			if (registers.channelSample[c] != null && pattern.volume[row][c] > 0) {
-				registers.sampleVolume[c] = pattern.volume[row][c];
-			}
-
-		    if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
-				if (pattern.note[row][c] == 97) {
-					registers.channelSample[c] = null;
-					registers.channelPeriod[c] = 0;
-				} else if (registers.channelSample[c] != null) {
-					registers.channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - registers.channelSample[c].basePeriod) * 64 - registers.channelSample[c].fineTune / 2;
-					var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[c]) / 768);
+		if (registers.patternDelay == 0) {
+			for (var c = 0; c < module.channels; c ++) {			
+				if (pattern.sample[row][c] != 0) {
+					//if (channelSample[c] != module.samples[pattern.sample[row][c] - 1]) {
+						registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
+						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
+						registers.samplePos[c]     = 0;                                          	// Restart sample
+					//}
 					
-					registers.samplePos[c]     = 0;														// Restart sample
-                    registers.noteDelay[c]     = 0;														// Reset note delay
-			    	registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;				// Repeat length of this sample
-					registers.sampleStep[c]    = freq / (registers.samplesPerTick * 3);					// Samples per division
+					if (module.type != "mod") {
+						registers.channelPan[c] = registers.channelSample[c].panning;				// Set default panning for sample
+					}
+					
+					// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
+					if (pattern.volume[row][c] > -1) {
+						registers.sampleVolume[c] = pattern.volume[row][c];
+					} else {
+						registers.sampleVolume[c] = registers.channelSample[c].volume;	
+					}
+				}
+				
+				// If we do have a sample and the volume on the row > 0 then use this as sample volume.
+				registers.tremolo[c] = 1.0;		// Also reset tremolo :)
+				if (registers.channelSample[c] != null && pattern.volume[row][c] > 0) {
+					registers.sampleVolume[c] = pattern.volume[row][c];
+				}
+
+				if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
+					if (pattern.note[row][c] == 97) {
+						registers.channelSample[c] = null;
+						registers.channelPeriod[c] = 0;
+					} else if (registers.channelSample[c] != null) {
+						registers.channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - registers.channelSample[c].basePeriod) * 64 - registers.channelSample[c].fineTune / 2;
+						var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[c]) / 768);
+						
+						registers.samplePos[c]     = 0;														// Restart sample
+						registers.noteDelay[c]     = 0;														// Reset note delay
+						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;				// Repeat length of this sample
+						registers.sampleStep[c]    = freq / (registers.samplesPerTick * 3);					// Samples per division
+					}
 				}
 			}
 		}
 		
 		for (var t = 0; t < registers.ticksPerRow; t ++) {
-			registers.currentTick = t;
-			
 			for (var c = 0; c < module.channels; c ++) {
 				// Process effects.
 				var param = pattern.effectParam[registers.currentRow][c];
 				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);
+				
+				// Stop playback when ticks is set to 0.
+				if (registers.ticksPerRow == 0) {
+					isPlaying = false;
+					
+					if (module.defaultTempo > 0) {
+						Effects.SET_TEMPO.handler (registers, 0, module.defaultBPM);
+						Effects.SET_SPEED.handler (registers, 0, module.defaultTempo);
+						pattern = module.patterns[module.orders[registers.orderIndex]];
+			
+						if (rowCallbackHandler != null) {
+							rowCallbackHandler (_this);
+						}
+					}
+					
+					return;
+				}
 
 				// Generate samples for current tick and channel.
 				var sIndex = registers.samplesPerTick * t;
@@ -381,6 +447,8 @@ function ScripTracker () {
 				// If a note delay is set decrease it.
 				registers.noteDelay[c] = Math.max (0, registers.noteDelay[c] - 1);
 			}
+			
+			registers.currentTick ++;
 		}
 
 		var audioBuffer = audioCtx.createBuffer (2, samplesL.length, registers.sampleRate);
@@ -432,9 +500,16 @@ function ScripTracker () {
 			registers.rowJump = -1;
 		}
 
-		registers.orderJump    = -1;
-		registers.breakPattern = -1;
-		registers.currentRow ++;
+		// Remain at the current row if pattern delay is active.
+		if (registers.patternDelay < 2) {
+			registers.orderJump    = -1;
+			registers.breakPattern = -1;
+			registers.currentRow ++;
+			registers.currentTick  = 0;
+			registers.patternDelay = 0;
+		} else {
+			registers.patternDelay --;
+		}
 
 		// When we reach the end of our current pattern jump to the next one.
 		if (registers.currentRow == pattern.rows) {

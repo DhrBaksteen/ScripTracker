@@ -439,10 +439,14 @@ var Effects = {
 		}
 	},
 	
+	// Keep the player at the current row for the time equivalent to param * rowDelay. Notes are not retriggered, but 
+	// effects remain active.
 	DELAY_PATTERN: {
 		representations: [ "E", "S", "?", "E" ],
 		handler: function (registers, channel, param, pattern) {
-			console.log ("I was too lazy to implement this :)");
+			if (registers.patternDelay == 0) {
+				registers.patternDelay = (param & 0x0F) + 1;
+			}
 		}
 	},
 	
@@ -465,13 +469,17 @@ var Effects = {
 	SET_SPEED: {
 		representations: [ "?", "A", "?", "?" ],
 		handler: function (registers, channel, param, pattern) {
-			registers.ticksPerRow = param;
-			
-			var rpm = (24 * registers.bpm) / registers.ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
-			var tpm = rpm * registers.ticksPerRow;
-			
-			registers.rowDelay       = 60000 / rpm;						// Number of milliseconds in one row.
-			registers.samplesPerTick = Math.round (registers.sampleRate / (tpm / 60));
+			if (param != 0) {
+				registers.ticksPerRow = param;
+				
+				var rpm = (24 * registers.bpm) / registers.ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
+				var tpm = rpm * registers.ticksPerRow;
+				
+				registers.rowDelay       = 60000 / rpm;						// Number of milliseconds in one row.
+				registers.samplesPerTick = Math.round (registers.sampleRate / (tpm / 60));
+			} else {				
+				registers.reset ();
+			}
 		}
 	},
 	
