@@ -239,6 +239,10 @@ function ScripTracker () {
 		return playerData;
 	};
 
+	
+	this.dump = function () {
+		console.log (registers);
+	}
 
 	/**
 	 * Main player 'thread' that calls itself every time a new row should be processed as long as the player is playing.
@@ -247,7 +251,13 @@ function ScripTracker () {
 		if (!isPlaying) return;
 	
 		setTimeout (function () {
-			playerThread ();
+			try {
+				playerThread ();
+			} catch (e) {
+				console.log ("A player error occurred!");
+				console.log (registers);
+				isPlaying = false;
+			}
 		}, 1);
 	
 		var t = (new Date ()).getTime ();
@@ -354,6 +364,9 @@ function ScripTracker () {
 						    if (registers.channelSample[c].loopType == registers.channelSample[c].LOOP_FORWARD) {
 						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
 						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
+							} else if (registers.channelSample[c].loopType == registers.channelSample[c].LOOP_PINGPONG) {
+						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
+						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
 							} else {
 							    registers.samplePos[c]    = registers.channelSample[c].sampleLength - 1;
 						    	registers.sampleStep[c]   = 0;
@@ -440,15 +453,4 @@ function ScripTracker () {
             pattern = module.patterns[module.orders[registers.orderIndex]];
 		}
 	};
-}
-
-
-
-function ItLoader (fileData) {
-	return null;
-}
-
-
-function XmLoader (fileData) {
-	return null;
 }

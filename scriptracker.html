@@ -15,6 +15,7 @@
 	<script type="text/javascript" src="ScripTracker.js"></script>
 	<script type="text/javascript" src="ModLoader.js"></script>
 	<script type="text/javascript" src="S3mLoader.js"></script>
+	<script type="text/javascript" src="XmLoader.js"></script>
 	
 
 	  <script type="text/javascript">
@@ -60,6 +61,8 @@
 							mod = ModLoader (fileLoadedEvent.target.result);
 						} else if (fileType == "s3m") {
 							mod = S3mLoader (fileLoadedEvent.target.result);
+						} else if (fileType == "xm") {
+							mod = XmLoader (fileLoadedEvent.target.result);
 						}
 						
 						player = new ScripTracker ();
@@ -84,6 +87,11 @@
 		        fileReader.readAsBinaryString (file);
 			});
 
+			$(document).keydown (function (e) {
+				if (e.keyCode == 68) {
+					player.dump ();					
+				}
+			});
 
 			$("#btnPlayPause").click (function () {
 				if (!player.isPlaying ()) {

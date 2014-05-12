@@ -12,6 +12,12 @@ function Sample () {
 	this.LOOP_NONE     = 0;             // Sample looping is disabled
 	this.LOOP_FORWARD  = 1;             // When sample reaches its end loop from loopStart to loopStart + loopLength
 	this.LOOP_PINGPONG = 2;             // When sample reaches its end loop from loopStart to loopStart + loopLength back and forth
+	
+	this.TYPE_8BIT  = 0;
+	this.TYPE_16BIT = 1;
+	this.TYPE_UNCOMPRESSED = 0;
+	this.TYPE_DELTA = 2;
+	this.TYPE_ADPCM = 4;
 
 	this.sampleIndex = 0;               // Index of this sample used by the module
 	this.name        = "";				// Name of this sample
@@ -20,6 +26,7 @@ function Sample () {
 	this.loopStart    = 0;              // Start position for sample looping if enabled
 	this.loopLength   = 0;              // Length of sample loop mesaured from start if enabled
 	this.loopType     = this.LOOP_NONE; // How the sample should looped when played to the end
+	this.dataType     = this.TYPE_8BIT | this.TYPE_UNCOMPRESSED;
 
 	this.volume   = 1.0;                // Default volume of this sample
 	this.panning  = 0.5;				// Default volume multiplication factor for channels
@@ -81,19 +88,23 @@ function Sample () {
 	 * Load sample data from delta values.
 	 */
 	this.loadDeltaSample = function (sampleData, is16Bit) {
-		this.sample = [];
-
 		var val = 0.0;
+
 		for (var i = 0; i < this.sampleLength; i ++) {
 			if (!is16Bit) {
+			
 				var val8 = sampleData.charCodeAt (i);
-				val += (val8 < 128) ? val8 / 127 : -((val8 ^ 0xFF) + 1) / 128;
+				if (val8 > 127) val8 = -(256 - val8);
+				val += val8 / 128;
 			} else {
-				var val16 = sampleData.charCodeAt (i * 2) + sampleData.charCodeAt (i * 2 + 1) * 256;
-                val += (val16 < 32768) ? val16 / 32767 : -((val16 ^ 0xFFFF) + 1) / 32768;
-   			}
-
-            this.sample.push (val);
+				var val16 = sampleData.charCodeAt (i) + (sampleData.charCodeAt (i + 1) << 8);
+				if (val16 > 32767) val16 = -(65536 - val16)
+                val += val16 / 32768;
+			}
+				
+			if (val < -1) val =  1 + (val + 1);
+			if (val > 1)  val = -1 + (val - 1);
+			this.sample.push (val);
 		}
 	};
 
@@ -102,6 +113,7 @@ function Sample () {
 	 * Decode an ADPCM sample to regular uncompressed sample data.
 	 */
 	this.loadAdpcmSample = function (sampleData, is16Bit) {
+		console.log ("adpcm sample");
 		var compression = [];
 		this.sample = [];
 
