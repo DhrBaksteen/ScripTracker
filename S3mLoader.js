@@ -41,7 +41,7 @@ function S3mLoader (fileData) {
 		sample.basePeriod = (sampleData.charCodeAt (32) + sampleData.charCodeAt (33) * 256);
 		sample.basePeriod = (sample.basePeriod) / 8363;
 		sample.basePeriod = (Math.log (sample.basePeriod) / Math.log (2)) * 768 + 3072;
-		sample.basePeriod = -(Math.round (sample.basePeriod / 64) - 72);
+		sample.basePeriod = -(Math.floor (sample.basePeriod / 64) - 72);
 		
 		var dataOffset = sampleData.charCodeAt (14) * 16 + sampleData.charCodeAt (15) * 4096;
 		var is16Bit    = (sampleData.charCodeAt (31) & 0x04) != 0;
@@ -68,7 +68,8 @@ function S3mLoader (fileData) {
 		
 		var pos = 2;
 		var i = 0;
-		while (i != 64) {
+		
+		while (i != 64 && patternData.length - pos > 0) {
 			var data = patternData.charCodeAt (pos);
 
 			if (data != 0x00) {

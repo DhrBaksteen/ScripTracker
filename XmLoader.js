@@ -166,7 +166,38 @@ function parseEffect (effect, param) {
 		case 13:
 			return Effects.PATTERN_BREAK;
 		case 14:
-			break;
+			var extend = (param & 0xF0) >> 4;
+			
+			switch (extend) {
+				case 1:
+					return Effects.FINE_PORTA_UP;
+				case 2:
+					return Effects.FINE_PORTA_DOWN;
+				case 3:
+					return Effects.SET_GLISANDO;
+				case 4:
+					return Effects.SET_VIBRATO;
+				case 5:
+					return Effects.SET_FINETUNE;
+				case 6:
+					return Effects.SET_LOOP;
+				case 7:
+					return Effects.SET_TREMOLO;
+				case 9:
+					return Effects.RETRIGGER;
+				case 10:
+					return Effects.FINE_VOL_SLIDE_UP;
+				case 11:
+					return Effects.FINE_VOL_SLIDE_DOWN;
+				case 12:
+					return Effects.CUT_NOTE;
+				case 13:
+					return Effects.DELAY_NOTE;
+				case 14:
+					return Effects.DELAY_PATTERN;
+				default:
+					return Effects.NONE;
+			}
 		case 15:
 			return Effects.SET_TEMPO_BPM;
 		case 16:
@@ -182,7 +213,16 @@ function parseEffect (effect, param) {
 		case 29:
 			return Effects.TREMOR;
 		case 33:
-			break;
+			var extend = (param & 0xF0) >> 4;
+			
+			switch (extend) {
+				case 1:
+					return Effects.EXTRA_FINE_PORTA_UP;
+				case 2:
+					return Effects.EXTRA_FINE_PORTA_DOWN;
+				default:
+					return Effects.NONE;
+			}
 		default:
 			return Effects.NONE;
 	}

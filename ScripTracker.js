@@ -90,7 +90,7 @@ function ScripTracker () {
 		
 			for (var i = 0; i < 32; i ++) {
 				if (unMute) {
-					this.channelMute  = false;
+					this.channelMute[i]  = false;
 				}
 				this.channelPeriod[i] = 0;
 				this.channelSample[i] = null;
@@ -414,12 +414,12 @@ function ScripTracker () {
 
 						if (registers.channelPan[c] <= 1.0) {
 							// Normal panning.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * (1.0 - registers.channelPan[c]) * registers.tremolo[c], 1.0)) * registers.masterVolume;
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] + sample *        registers.channelPan[c]  * registers.tremolo[c], 1.0)) * registers.masterVolume;
+							samplesL[sIndex] += sample * (1.0 - registers.channelPan[c]) * registers.tremolo[c];
+                        	samplesR[sIndex] += sample *        registers.channelPan[c]  * registers.tremolo[c];
 						} else {
 							// Surround sound.
-							samplesL[sIndex] = Math.max (-1.0, Math.min (samplesL[sIndex] + sample * 0.5 * registers.tremolo[c], 1.0)) * registers.masterVolume;
-                        	samplesR[sIndex] = Math.max (-1.0, Math.min (samplesR[sIndex] - sample * 0.5 * registers.tremolo[c], 1.0)) * registers.masterVolume;
+							samplesL[sIndex] += sample * 0.5 * registers.tremolo[c];
+                        	samplesR[sIndex] -= sample * 0.5 * registers.tremolo[c];
 						}
 
 						registers.samplePos[c]    += registers.sampleStep[c];
@@ -452,6 +452,12 @@ function ScripTracker () {
 		}
 
 		var audioBuffer = audioCtx.createBuffer (2, samplesL.length, registers.sampleRate);
+		
+		// Clip sample values [-1, 1] and apply master volume.
+		for (var i = 0; i < samplesL.length; i ++) {
+			samplesL[i] = Math.max (-1, Math.min (samplesL[i], 1)) * registers.masterVolume;
+			samplesR[i] = Math.max (-1, Math.min (samplesR[i], 1)) * registers.masterVolume;
+		}
 
 		var sourceL = audioCtx.createBufferSource (0);
 		audioBuffer.getChannelData (0).set (samplesL);
