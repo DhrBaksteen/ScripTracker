@@ -77,57 +77,104 @@ function XmLoader (fileData) {
 
 	// Read instrument and sample data.
 	for (var i = 0; i < mod.sampleCount; i ++) {
+		console.log ("Volume envelope for instrument " + i);
 		var instrumentSize = readDWord (fileData, offset);
 		var iName          = fileData.substring (offset + 4, offset + 26);
 		var iType          = fileData.charCodeAt (offset + 26);
 		var iNSamples      = readWord (fileData, offset + 27);
-		
-		offset += instrumentSize;
+				
 		if (iNSamples == 0) {
 			mod.samples.push (new Sample ()); 
-		}
-		
-		// Load sample headers.
-		for (var s = 0; s < iNSamples; s ++) {
-			var sample = new Sample ();
+			offset += instrumentSize;
+		} else {		
+			// Create volume envelope.
+			var volumeEnvelope     = new Envelope ();			
+			volumeEnvelope.type    = fileData.charCodeAt (offset + 233);
+			var volEnvelopePoints  = fileData.charCodeAt (offset + 225);
+			var volEnvelopeSustain = fileData.charCodeAt (offset + 227); 
+			var volEnvelopeLpBegin = fileData.charCodeAt (offset + 228);
+			var volEnvelopeLpEnd   = fileData.charCodeAt (offset + 229);			
 			
-			sample.sampleLength = readDWord (fileData, offset);
-			sample.loopStart    = readDWord (fileData, offset + 4);
-			sample.loopLength   = readDWord (fileData, offset + 8);
+			// Create panning envelope.
+			var panEnvelope        = new Envelope ();
+			panEnvelope.type       = fileData.charCodeAt (offset + 234);
+			var panEnvelopePoints  = fileData.charCodeAt (offset + 226);
+			var panEnvelopeSustain = fileData.charCodeAt (offset + 230);
+			var panEnvelopeLpBegin = fileData.charCodeAt (offset + 231);
+			var panEnvelopeLpEnd   = fileData.charCodeAt (offset + 232);
 			
-			sample.volume       = fileData.charCodeAt (offset + 12) / 64.0;
-			sample.fineTune     = (fileData.charCodeAt (offset + 13) < 128) ? fileData.charCodeAt (offset + 13) : -((fileData.charCodeAt (offset + 13) ^ 0xFF) + 1);
-			sample.loopType     = (sample.loopLength > 0) ? (fileData.charCodeAt (offset + 14) & 0x03) : sample.LOOP_NONE;
-			sample.dataType     = ((fileData.charCodeAt (offset + 14) & 0x10) == 0) ? sample.TYPE_8BIT : sample.TYPE_16BIT;
-			sample.panning      = fileData.charCodeAt (offset + 15) / 255.0;
-			sample.basePeriod   = fileData.charCodeAt (offset + 16);			
-			sample.dataType    |= (fileData.charCodeAt (offset + 17) == 0xAD) ? sample.TYPE_ADPCM : sample.TYPE_DELTA;
-			sample.name         = iName;
-						
-			// Correct sample base period.
-			if (sample.basePeriod > 127) sample.basePeriod = -(256 - sample.basePeriod);
-			sample.basePeriod = -sample.basePeriod + 24;
-						
-			mod.samples.push (sample);
-			offset += 40;
-		}			
-		
-		// Load sample data.
-		for (var s = 0; s < iNSamples; s ++) {
-			var sample = mod.samples[mod.samples.length - iNSamples + s];
-
-			if (sample.sampleLength > 0) {
-				var sampleData = fileData.substring (offset, offset + sample.sampleLength);
-				var is16Bit    = (sample.dataType & sample.TYPE_16BIT) != 0;
+			// Read volume and panning envelope data.
+			for (var ep = 0; ep < 12; ep ++) {
+				if (ep < volEnvelopePoints) {
+					volumeEnvelope.addPoint (
+						readWord (fileData, offset + 129 + ep * 4), 
+						Math.min (readWord (fileData, offset + 131 + ep * 4) / 64, 1),
+						ep == volEnvelopeSustain,
+						ep == volEnvelopeLpBegin,
+						ep == volEnvelopeLpEnd
+					);
+				}
 				
-				if ((sample.dataType & Sample.TYPE_DELTA) == 0) {
-					sample.loadDeltaSample (sampleData, is16Bit);
-				} else {
-					sample.loadAdpcmSample (sampleData, is16Bit);
+				if (ep < panEnvelopePoints) {
+					panEnvelope.addPoint (
+						readWord (fileData, offset + 177 + ep * 4), 
+						Math.min (readWord (fileData, offset + 179 + ep * 4) / 64, 1),
+						ep == panEnvelopeSustain,
+						ep == panEnvelopeLpBegin,
+						ep == panEnvelopeLpEnd
+					);
 				}
 			}
 			
-			offset += sample.sampleLength;
+			console.log (volumeEnvelope);
+			
+			offset += instrumentSize;
+		
+			// Load sample headers.
+			for (var s = 0; s < iNSamples; s ++) {
+				var sample = new Sample ();
+				
+				sample.sampleLength = readDWord (fileData, offset);
+				sample.loopStart    = readDWord (fileData, offset + 4);
+				sample.loopLength   = readDWord (fileData, offset + 8);
+				
+				sample.volume       = fileData.charCodeAt (offset + 12) / 64.0;
+				sample.fineTune     = (fileData.charCodeAt (offset + 13) < 128) ? fileData.charCodeAt (offset + 13) : -((fileData.charCodeAt (offset + 13) ^ 0xFF) + 1);
+				sample.loopType     = (sample.loopLength > 0) ? (fileData.charCodeAt (offset + 14) & 0x03) : sample.LOOP_NONE;
+				sample.dataType     = ((fileData.charCodeAt (offset + 14) & 0x10) == 0) ? sample.TYPE_8BIT : sample.TYPE_16BIT;
+				sample.panning      = fileData.charCodeAt (offset + 15) / 255.0;
+				sample.basePeriod   = fileData.charCodeAt (offset + 16);			
+				sample.dataType    |= (fileData.charCodeAt (offset + 17) == 0xAD) ? sample.TYPE_ADPCM : sample.TYPE_DELTA;
+				sample.name         = iName;
+				
+				sample.volEnvelope = volumeEnvelope;
+				sample.panEnvelope = panEnvelope;
+							
+				// Correct sample base period.
+				if (sample.basePeriod > 127) sample.basePeriod = -(256 - sample.basePeriod);
+				sample.basePeriod = -sample.basePeriod + 24;
+							
+				mod.samples.push (sample);
+				offset += 40;
+			}			
+			
+			// Load sample data.
+			for (var s = 0; s < iNSamples; s ++) {
+				var sample = mod.samples[mod.samples.length - iNSamples + s];
+
+				if (sample.sampleLength > 0) {
+					var sampleData = fileData.substring (offset, offset + sample.sampleLength);
+					var is16Bit    = (sample.dataType & sample.TYPE_16BIT) != 0;
+					
+					if ((sample.dataType & Sample.TYPE_DELTA) == 0) {
+						sample.loadDeltaSample (sampleData, is16Bit);
+					} else {
+						sample.loadAdpcmSample (sampleData, is16Bit);
+					}
+				}
+				
+				offset += sample.sampleLength;
+			}
 		}
 	}
 	

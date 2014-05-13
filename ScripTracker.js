@@ -67,6 +67,12 @@ function ScripTracker () {
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		loopCount:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Loop counter per channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		envelopePos:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Volume and panning envelope position per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		noteDecay:     [false, false, false, false, false, false, false, false,	// Is the note on this channel decaying.
+						false, false, false, false, false, false, false, false,
+						false, false, false, false, false, false, false, false,
+						false, false, false, false, false, false, false, false],
 				
 		/**
 		 * Reset all registers to default. The unMute parameter dictates whether channel mute is also to be reset.
@@ -341,6 +347,8 @@ function ScripTracker () {
 						registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
 						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
 						registers.samplePos[c]     = 0;                                          	// Restart sample
+						registers.envelopePos[c]   = 0;												// Reset volume envelope.
+						registers.noteDecay[c]     = false;											// Reset decay.
 					//}
 					
 					if (module.type != "mod") {
@@ -361,10 +369,10 @@ function ScripTracker () {
 					registers.sampleVolume[c] = pattern.volume[row][c];
 				}
 
+				// This row contains a note and we are not doing a slide to note.
 				if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
 					if (pattern.note[row][c] == 97) {
-						registers.channelSample[c] = null;
-						registers.channelPeriod[c] = 0;
+						registers.noteDecay[c]    = true;
 					} else if (registers.channelSample[c] != null) {
 						registers.channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - registers.channelSample[c].basePeriod) * 64 - registers.channelSample[c].fineTune / 2;
 						var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[c]) / 768);
@@ -401,6 +409,9 @@ function ScripTracker () {
 					return;
 				}
 
+				var vEnvelopeValue = 1.0;
+				var pEnvelopeValue = 0.5;
+				
 				// Generate samples for current tick and channel.
 				var sIndex = registers.samplesPerTick * t;
 				for (var s = 0; s < registers.samplesPerTick; s ++) {
@@ -410,12 +421,19 @@ function ScripTracker () {
 					}
 
 			        if (registers.channelSample[c] != null && registers.noteDelay[c] == 0 && !registers.channelMute[c]) {
-			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])] * registers.sampleVolume[c];
+						// Get envelope values and increment envelope position.
+						if (s == 0) {
+							vEnvelopeValue = registers.channelSample[c].volEnvelope.getValue (registers.envelopePos[c], registers.noteDecay[c], 1.0);
+							pEnvelopeValue = registers.channelSample[c].panEnvelope.getValue (registers.envelopePos[c], registers.noteDecay[c], 0.5);
+							registers.envelopePos[c] ++;
+						}
+					
+			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])] * registers.sampleVolume[c] * vEnvelopeValue;						
 
 						if (registers.channelPan[c] <= 1.0) {
 							// Normal panning.
-							samplesL[sIndex] += sample * (1.0 - registers.channelPan[c]) * registers.tremolo[c];
-                        	samplesR[sIndex] += sample *        registers.channelPan[c]  * registers.tremolo[c];
+							samplesL[sIndex] += sample * (1.0 - registers.channelPan[c]) * (1.0 - pEnvelopeValue) * registers.tremolo[c];
+                        	samplesR[sIndex] += sample *        registers.channelPan[c]  *        pEnvelopeValue  * registers.tremolo[c];
 						} else {
 							// Surround sound.
 							samplesL[sIndex] += sample * 0.5 * registers.tremolo[c];
