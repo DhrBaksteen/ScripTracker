@@ -282,40 +282,95 @@ function ScripTracker () {
 		rowCallbackHandler = handler;
 	}
 	
+	/**
+	 * Get the name of the currently loaded module.
+	 */
+	this.getSongName = function () {
+		return module.name;
+	};
+	
 	
 	/**
-	 * Get an object containing the current player status.
-	 * @expose
+	 * Get the currently active order number .
 	 */
-	this.getSongData = function () {
-		var playerData = {
-			"songName" : module.name,
-			"order": registers.orderIndex + 1,
-			"length": module.songLength,
-			"patternIndex": module.orders[registers.orderIndex],
-			"pattern": pattern,
-			"bpm": registers.bpm,
-			"ticks": registers.ticksPerRow,
-			"row": registers.currentRow,
-			"channel": []
-		};
-		
-		// Export data of current row.
-		for (var i = 0; i < 32; i ++) {
-			playerData.channel[i] = {};
-			playerData.channel[i].rowData = pattern.toText (registers.currentRow, i);
-			playerData.channel[i].instrument = (registers.channelSample[i] != null) ? registers.channelSample[i].name : "";
-			playerData.channel[i].volume = registers.sampleVolume[i] * (registers.channelSample[i] ? registers.channelSample[i].volEnvelope.getValue (registers.envelopePos[i], registers.noteDecay[i], 1.0) : 1.0);
-		}
-		
-		return playerData;
+	this.getCurrentOrder = function () {
+		return registers.orderIndex + 1;
+	};
+	
+	
+	/**
+	 * Get the index of the currently active pattern.
+	 */
+	this.getCurrentPattern = function () {
+		return module.orders[registers.orderIndex];
+	};
+	
+	
+	/**
+	 * Get the song length as the number of orders.
+	 */
+	this.getSongLength = function () {
+		return module.songLength;
 	};
 
+
+	/**
+	 * Get the current BPM of the song.
+	 */
+	this.getCurrentBPM = function () {
+		return registers.bpm;
+	};
+	
+	
+	/**
+	 * Get the current number of ticks per row.
+	 */
+	this.getCurrentTicks = function () {
+		return registers.ticksPerRow;
+	};
+	
+	
+	/**
+	 * Get the currently active row of the pattern.
+	 */
+	this.getCurrentRow = function () {
+		return registers.currentRow;
+	};
+	
+	
+	/**
+	 * Get the volume [0.0, 1.0] of the given channel.
+	 */
+	this.getChannelVolume = function (channel) {
+		if (registers.channelSample[channel]) {
+			return registers.sampleVolume[channel] * registers.channelSample[channel].volEnvelope.getValue (registers.envelopePos[channel], registers.noteDecay[channel], 1.0);
+		} else {
+			return registers.sampleVolume[channel];
+		}
+	};
+	
+	
+	/**
+	 * Get the name of the instrument playing on the given channel.
+	 */
+	this.getChannelInstrument = function (channel) {
+		return (registers.channelSample[channel] != null) ? registers.channelSample[channel].name : "";
+	};
+	
+	
+	/**
+	 * Get note info text for the given channel and row. e.g. 'C-5 01 .. ...'.
+	 */
+	this.getNoteInfo = function (channel, row) {
+		return pattern.toText (row, channel, module.type);
+	};
+	
 	
 	this.dump = function () {
 		console.log (registers);
 		console.log (pattern);
 	}
+	
 
 	/**
 	 * Main player 'thread' that calls itself every time a new row should be processed as long as the player is playing.

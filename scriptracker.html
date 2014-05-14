@@ -1,431 +1,165 @@
 <!DOCTYPE HTML>
 <html>
-  <head>
-	  <title>ScripTracker</title>
+	<head>
+		<title>ScripTracker</title>
 
-	  <link rel="stylesheet" type="text/css" href="css/style.css" />
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
 
-	<script type="text/javascript" src="js/lib/jquery-1.9.0.min.js"></script>
-	<script type="text/javascript" src="js/lib/analytics.js"></script>
-	<script type="text/javascript" src="js/ScripTracker.js"></script>
+		<script type="text/javascript" src="js/lib/jquery-1.9.0.min.js"></script>
+		<script type="text/javascript" src="js/lib/analytics.js"></script>
+		<script type="text/javascript" src="js/ScripTracker.js"></script>
+		<script type="text/javascript" src="js/PlayerUI.js"></script>
+
+		<!-- Dev sources -->
+		<script type="text/javascript" src="js/Module.js"></script>
+		<script type="text/javascript" src="js/Pattern.js"></script>
+		<script type="text/javascript" src="js/Sample.js"></script>
+		<script type="text/javascript" src="js/Effects.js"></script>
+		<script type="text/javascript" src="js/Envelope.js"></script>
+		<script type="text/javascript" src="js/ModLoader.js"></script>
+		<script type="text/javascript" src="js/S3mLoader.js"></script>
+		<script type="text/javascript" src="js/ItLoader.js"></script>
+		<script type="text/javascript" src="js/XmLoader.js"></script>
+	</head>
 	
-	<!-- Dev sources -->
-	<script type="text/javascript" src="js/Module.js"></script>
-	<script type="text/javascript" src="js/Pattern.js"></script>
-	<script type="text/javascript" src="js/Sample.js"></script>
-	<script type="text/javascript" src="js/Effects.js"></script>
-	<script type="text/javascript" src="js/Envelope.js"></script>
-	<script type="text/javascript" src="js/ModLoader.js"></script>
-	<script type="text/javascript" src="js/S3mLoader.js"></script>
-	<script type="text/javascript" src="js/ItLoader.js"></script>
-	<script type="text/javascript" src="js/XmLoader.js"></script>
+	<body>
+		<table class="tracker">
+			<tr>
 
-	  <script type="text/javascript">
-	    var mod = null;
-	    var player = null;
-		var playing = false;
-		var solo = false;
-		var scroll = 0;
-		var cellLookup = [];
+				<!-- Player controls -->
+				<td align="left">
+					<table cellspacing="0" cellpadding="0">
+						<tr>
+							<td>
+								<div id="btnPrevOrder" class="button btnPrev" title="Previous order">
+								</div>
+							</td>
+							<td>
+								<div id="btnPlayPause" class="button btnPlay" title="Play / Pause">
+								</div>
+							</td>
+							<td>
+								<div id="btnPattern" class="button btnPattern" title="Pattern repeat">
+								</div>
+							</td>
+							<td>
+								<div id="btnNextOrder" class="button btnNext" title="Next order">
+								</div>
+							</td>
+							<td class="spacer10"></td>
+							<td>
+								<div id="btnEject" class="button btnEject" title="Open file">
+								</div>
+							</td>
+						</tr>
+					</table>
+				</td>
 
-	    $(document).ready (function () {
-			try {
-				context = new webkitAudioContext ();
-			} catch (e) {
-				alert ("Web Audio API is not supported in this browser");
-			}
-
-			for (var i = 0; i < 16; i ++) {
-				cellLookup[i] = [];
-				var rowData = $("<tr/>");
-				var cell = $("<td class=\"patternCellBorder dataCell\">" + ((i < 10) ? "0" : "") + i + "</td>");
-				rowData.append (cell);
-				cellLookup[i][0] = cell;
-				
-				for (var j = 0; j < 8; j ++) {
-					cell = $("<td class=\"patternCellBorder dataCell\">... .. .. ...</td>");
-					rowData.append (cell);	
-					cellLookup[i][j + 1] = cell;
-				}
-				rowData.insertBefore ("#trPatScroll");	
-			}
-
-			$("#modFileChooser").change (function (e) {
-			    var file = e.target.files[0];
-
-                var fileReader = new FileReader();
-		        fileReader.onloadend = function (fileLoadedEvent) {
-		            if (fileLoadedEvent.target.readyState == FileReader.DONE) {
-						var fileNamePart = String (file.name).split (".");
-						var fileType = fileNamePart[fileNamePart.length - 1].toLowerCase ();
-						
-						if (fileType == "mod") {
-							mod = ModLoader (fileLoadedEvent.target.result);
-						} else if (fileType == "s3m") {
-							mod = S3mLoader (fileLoadedEvent.target.result);
-						} else if (fileType == "xm") {
-							mod = XmLoader (fileLoadedEvent.target.result);
-						}
-						
-						player = new ScripTracker ();
-						player.setRowCallbackhandler (playerUpdate);
-						player.load (mod);
-						
-						// Set channel headers
-						$("td[id^='tdPatHead']").each (function (i) {
-							if (i >= mod.channels) {
-								$(this).addClass ("patternRowHeaderMute");
-								$(this).css ("cursor", "default");
-							} else {
-								$(this).removeClass ("patternRowHeaderMute");
-								$(this).css ("cursor", "");
-							}
-						});
-						
-						$("#btnPlayPause").click ();
-		            }
-		        }
-
-		        fileReader.readAsBinaryString (file);
-			});
-
-			$(document).keydown (function (e) {
-				if (e.keyCode == 68) {
-					player.dump ();					
-				}
-			});
-
-			$("#btnPlayPause").click (function () {
-				if (!player.isPlaying ()) {
-			    	$(this).removeClass ("btnPlay");
-			    	$(this).addClass    ("btnPause");
-
-					playing = true;
-					player.play ();
-				} else {
-					$(this).removeClass ("btnPause");
-					$(this).addClass    ("btnPlay");
-
-					playing = false;
-     				player.stop ();
-				}
-			});
-
-
-			$("#btnEject").click (function () {
-				$("#btnPlayPause").removeClass ("btnPause");
-				$("#btnPlayPause").addClass    ("btnPlay");
-				if (player) {
-    				player.stop ();
-				}
-
-                $("#modFileChooser").trigger("click");
-			});
-
-
-			$("#btnPattern").click (function () {
-    			player.setPatternLoop (!player.isPatternLoop ());
-
-				if (player.isPatternLoop ()) {
-					$(this).addClass ("btnPatternDown");
-				} else {
-                    $(this).removeClass ("btnPatternDown");
-				}
-			});
-
-
-    		$("#btnPrevOrder").click (function () {
-    			player.prevOrder ();
-			});
-
-
-            $("#btnNextOrder").click (function () {
-                player.nextOrder ();
-			});
-
-
-            $("td[id^='tdPatHead']").click (function () {
-				var channel = Number ($(this).attr ("id").split ("tdPatHead")[1]);
-
-				if (channel + scroll < mod.channels) {
-					player.setMute (channel + scroll, !player.isMuted (channel + scroll));
-					
-					if (player.isMuted (channel + scroll)) {
-						$(this).addClass ("patternRowHeaderMute");
-					} else {
-						$(this).removeClass ("patternRowHeaderMute");
-					}
-				}
-			});
-	
-			
-			$("td[id^='tdPatHead']").bind ("contextmenu", function (e) {
-				var channel = Number ($(this).attr ("id").split ("tdPatHead")[1]);
-				if (channel + scroll >= mod.channels) return;
-
-				if (!solo) {
-					$("td[id^='tdPatHead']").addClass ("patternRowHeaderMute");
-					for (var i = 0; i < mod.channels; i ++) {						
-						player.setMute (i, true);
-					}					
-				
-					$(this).removeClass ("patternRowHeaderMute");
-					player.setMute (channel + scroll, false);
-					
-					solo = true;
-				} else {
-					$("td[id^='tdPatHead']").removeClass ("patternRowHeaderMute");
-					
-					for (var i = 0; i < mod.channels; i ++) {
-						player.setMute (i, false);
-					}
-					
-					solo = false;
-				}
-				
-				return false;
-			});
-
-			
-			$("#btnScrollLeft").click (function () {
-				if (scroll > 0) {
-					setScroll (scroll - 1);
-				}
-			});
-			
-			
-			$("#btnScrollRight").click (function () {
-				if (scroll < 24) {
-					setScroll (scroll + 1);
-				}
-			});
-			
-
-			$(window).resize(function(){
-				$('.tracker').css ({
-					position:'absolute',
-					left: ($(window).width  () - $('.tracker').outerWidth  ())  / 2,
-					top:  ($(window).height () - $('.tracker').outerHeight ()) / 2
-				});
-			});
-
-			$(window).resize();
-		});
-
-
-		function playerUpdate (player) {
-			var data = player.getSongData ();
-
-			// Fill song info area.
-			$("#txtSongName").text (data.songName);
-			$("#txtOrder").text (data.order + "/" + data.length);
-			$("#txtPattern").text (data.patternIndex);
-			$("#txtRow").text (data.row);
-			$("#txtTempo").text (data.bpm + "/" + data.ticks);
-
-			var firstRow = Math.min (Math.max (0, data.row - 7), 48);
-			for (var i = firstRow; i < firstRow + 16; i ++) {
-				cellLookup [i - firstRow][0].text ((i < 10 ? "0" : "") + i);
-				for (var j = 0; j < 8; j ++) {					
-					cellLookup [i - firstRow][j + 1].text (data.pattern.toText (i, j + scroll, mod.type));
-					cellLookup [i - firstRow][j + 1].css ("background", (i % 4 == 0) ? "#202020" : "#000000");
-				}
-			}
-
-			// Hilight current row.
-			$("#patternView td").removeClass ("rowPlayHead");
-			if (data.row < 8) {
-				$("#patternView tr:nth-child(" + (data.row + 1) + ") td").addClass ("rowPlayHead");
-			} else if (data.row > 55) {
-				$("#patternView tr:nth-child(" + (data.row - 46) + ") td").addClass ("rowPlayHead");
-			} else {
-				$("#patternView tr:nth-child(9) td").addClass ("rowPlayHead");
-			}
-
-			// Set instruments and VU meters.
-			for (var i = 0; i < 8; i ++) {
-				$("#tdVuInst" + i).text (player.isMuted (i + scroll) ? "** MUTE **" : data.channel[i + scroll].instrument.substring (0, 13));
-				$("#tdVuCell" + i + " div").each (function (j) {
-					var v = player.isMuted (i + scroll) ? -1 : Math.round (data.channel[i + scroll].volume * 16);
-					
-					if (j < 12) {
-						if (v > j) {
-							$(this).attr ("class", "vuLed vuGreenOn");
-						} else {
-							$(this).attr ("class", "vuLed vuGreenOff");
-						}
-					} else {
-						if (v > j) {
-							$(this).attr ("class", "vuLed vuRedOn");
-						} else {
-							$(this).attr ("class", "vuLed vuRedOff");
-						}
-					}
-				});
-			}
-		}
-
-		
-		function setScroll (leftCol) {
-			scroll = leftCol;
-			
-			for (var i = 0; i < 8; i ++) {
-				$("#tdPatHead" + i).text ("Channel " + ((leftCol + i + 1 < 10) ? "0" : "") + (leftCol + i + 1));
-				if (player != null && player.isMuted (i + leftCol)) {
-					$("#tdPatHead" + i).addClass ("patternRowHeaderMute");
-				} else {					
-					$("#tdPatHead" + i).removeClass ("patternRowHeaderMute");
-				}
-			}
-			
-			if (player != null) {
-				playerUpdate (player);
-			}
-			
-			$("#scrollButton").css ("margin-left", ((892 / 24) * leftCol) + "px");
-		}
-	  </script>
-  </head>
-  <body>
-
-
-	<table class="tracker">
-		<tr>
-
-        	<!-- Player controls -->
-			<td align="left">
-                <table cellspacing="0" cellpadding="0">
-			 	    <tr>
-			 	        <td>
-			 	            <div id="btnPrevOrder" class="button btnPrev" title="Previous order">
-			 	            </div>
-			 	        </td>
-			 	        <td>
-			 	            <div id="btnPlayPause" class="button btnPlay" title="Play / Pause">
-			 	            </div>
-			 	        </td>
-			 	        <td>
-			 	            <div id="btnPattern" class="button btnPattern" title="Pattern repeat">
-			 	            </div>
-			 	        </td>
-			 	        <td>
-			 	            <div id="btnNextOrder" class="button btnNext" title="Next order">
-			 	            </div>
-			 	        </td>
-						<td class="spacer10"></td>
-			            <td>
-			 	            <div id="btnEject" class="button btnEject" title="Open file">
-			 	            </div>
-			 	        </td>
-			 	    </tr>
-			 	</table>
-			</td>
-
-            <!-- Song info -->
-			<td>
-            	<table cellspacing="0" cellpadding="0">
-					<tr>
-						<td class="dataLabelCell">Song:</td>
-						<td id="txtSongName" colspan="3" class="dataCell infoSong"></td>
-					</tr>
-					<tr>
-						<td class="dataLabelCell">Order:</td>
-						<td id="txtOrder" class="dataCell infoOrder"></td>
-						<td class="dataLabelCell infoTextTempo">Tempo:</td>
-						<td id="txtTempo" class="dataCell infoOrder"></td>
-					</tr>
-					<tr>
-						<td class="dataLabelCell">Pattern:</td>
-						<td id="txtPattern" class="dataCell infoPattern"></td>
-						<td class="dataLabelCell">Row:</td>
-						<td id="txtRow" class="dataCell infoRow"></td>
-					</td>
-				</table>
-			</td>
-
-			<!-- Logo -->
-			<td align="right">
-				<table>
-					<tr>
-						<td class="logo">
-							Version 0.8.7<br/>
-							Copyright (c) 2013-2014 Maarten Janssen
+				<!-- Song info -->
+				<td>
+					<table cellspacing="0" cellpadding="0">
+						<tr>
+							<td class="dataLabelCell">Song:</td>
+							<td id="txtSongName" colspan="3" class="dataCell infoSong"></td>
+						</tr>
+						<tr>
+							<td class="dataLabelCell">Order:</td>
+							<td id="txtOrder" class="dataCell infoOrder"></td>
+							<td class="dataLabelCell infoTextTempo">Tempo:</td>
+							<td id="txtTempo" class="dataCell infoOrder"></td>
+						</tr>
+						<tr>
+							<td class="dataLabelCell">Pattern:</td>
+							<td id="txtPattern" class="dataCell infoPattern"></td>
+							<td class="dataLabelCell">Row:</td>
+							<td id="txtRow" class="dataCell infoRow"></td>
 						</td>
-					</tr>
-				</table>
-			</td>
-		</tr>
+					</table>
+				</td>
 
-		<tr>
-			<td colspan="3">
+				<!-- Logo -->
+				<td align="right">
+					<table>
+						<tr>
+							<td class="logo">
+								Version 0.8.7<br/>
+								Copyright (c) 2013-2014 Maarten Janssen
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
 
-			</td>
-		</tr>
+			<tr>
+				<td colspan="3">
 
-		<!-- Pattern view -->
-		<tr>
-			<td colspan="3">
+				</td>
+			</tr>
 
-				<table>
-                	<tr>
-						<td style="padding-left: 29px">
-							<table cellspacing="0" cellpadding="0" class="patternView">
-								<tr>
-									<td id="tdVuInst0" class="patternRowHeaderLeft vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst1" class="vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst2" class="vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst3" class="vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst4" class="vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst5" class="vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst6" class="vuCell patternCellBorder">---</td>
-                                    <td id="tdVuInst7" class="vuCell">---</td>
-								</tr>
-                                <tr>
-									<td id="tdVuCell0" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell1" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell2" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell3" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell4" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell5" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell6" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-                                    <td id="tdVuCell7" class="vuCell"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
-								</tr>
-							</table>
-						</td>
-					</tr>
-					<tr>
-						<td>
-							<table id="patternView" cellspacing="0" cellpadding="0" class="patternView">
-								<tr>
-									<td class="patternRowHeaderLeft patternCellBorder"></td>
-									<td id="tdPatHead0" class="patternRowHeader patternCellBorder">Channel 01</td>
-			                        <td id="tdPatHead1" class="patternRowHeader patternCellBorder">Channel 02</td>
-			                        <td id="tdPatHead2" class="patternRowHeader patternCellBorder">Channel 03</td>
-			                        <td id="tdPatHead3" class="patternRowHeader patternCellBorder">Channel 04</td>
-			                        <td id="tdPatHead4" class="patternRowHeader patternCellBorder">Channel 05</td>
-			                        <td id="tdPatHead5" class="patternRowHeader patternCellBorder">Channel 06</td>
-			                        <td id="tdPatHead6" class="patternRowHeader patternCellBorder">Channel 07</td>
-			                        <td id="tdPatHead7" class="patternRowHeader">Channel 08</td>
-								</tr>
-								<tr id="trPatScroll">
-									<td colspan="9">
-										<table cellspacing="0" cellpadding="0" class="scrollTrack">
-											<tr>
-												<td><div id="btnScrollLeft" class="smallButton btnScrollLeft"></div></td>
-												<td class="fullWidth"><div id="scrollButton" class="scrollButton"></div></td>
-												<td><div id="btnScrollRight" class="smallButton btnScrollRight"></div></td>
-											</tr>
-										</table>
-									</td>
-								</tr>
-							</table>
-						</td>
-					</tr>
-				</table>
-			</td>
-		</tr>
-	</table>
+			<!-- Pattern view -->
+			<tr>
+				<td colspan="3">
 
-	<input id="modFileChooser" type="file" style="display: none;"/>
-  </body>
+					<table>
+						<tr>
+							<td style="padding-left: 29px">
+								<table cellspacing="0" cellpadding="0" class="patternView">
+									<tr>
+										<td id="tdVuInst0" class="patternRowHeaderLeft vuCell patternCellBorder">---</td>
+										<td id="tdVuInst1" class="vuCell patternCellBorder">---</td>
+										<td id="tdVuInst2" class="vuCell patternCellBorder">---</td>
+										<td id="tdVuInst3" class="vuCell patternCellBorder">---</td>
+										<td id="tdVuInst4" class="vuCell patternCellBorder">---</td>
+										<td id="tdVuInst5" class="vuCell patternCellBorder">---</td>
+										<td id="tdVuInst6" class="vuCell patternCellBorder">---</td>
+										<td id="tdVuInst7" class="vuCell">---</td>
+									</tr>
+									<tr>
+										<td id="tdVuCell0" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell1" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell2" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell3" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell4" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell5" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell6" class="vuCell patternCellBorder"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+										<td id="tdVuCell7" class="vuCell"><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuGreenOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div><div class="vuLed vuRedOff"></div></td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<table id="patternView" cellspacing="0" cellpadding="0" class="patternView">
+									<tr>
+										<td class="patternRowHeaderLeft patternCellBorder"></td>
+										<td id="tdPatHead0" class="patternRowHeader patternCellBorder">Channel 01</td>
+										<td id="tdPatHead1" class="patternRowHeader patternCellBorder">Channel 02</td>
+										<td id="tdPatHead2" class="patternRowHeader patternCellBorder">Channel 03</td>
+										<td id="tdPatHead3" class="patternRowHeader patternCellBorder">Channel 04</td>
+										<td id="tdPatHead4" class="patternRowHeader patternCellBorder">Channel 05</td>
+										<td id="tdPatHead5" class="patternRowHeader patternCellBorder">Channel 06</td>
+										<td id="tdPatHead6" class="patternRowHeader patternCellBorder">Channel 07</td>
+										<td id="tdPatHead7" class="patternRowHeader">Channel 08</td>
+									</tr>
+									<tr id="trPatScroll">
+										<td colspan="9">
+											<table cellspacing="0" cellpadding="0" class="scrollTrack">
+												<tr>
+													<td><div id="btnScrollLeft" class="smallButton btnScrollLeft"></div></td>
+													<td class="fullWidth"><div id="scrollButton" class="scrollButton"></div></td>
+													<td><div id="btnScrollRight" class="smallButton btnScrollRight"></div></td>
+												</tr>
+											</table>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+
+		<input id="modFileChooser" type="file" style="display: none;"/>
+	</body>
 </html>
