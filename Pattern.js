@@ -8,6 +8,9 @@
  * Version: 1.0.0
  * Date:    14-02-2013
  */
+ /**
+ * @constructor
+ */
 function Pattern (rows, columns) {
 	this.patternIndex = 0;              // Index of this pattern within the module.
 

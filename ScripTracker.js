@@ -1,3 +1,6 @@
+/**
+ * @constructor
+ */
 function ScripTracker () {
 	var _this  = this;                  // Self reference for private functions.
 	
@@ -51,25 +54,25 @@ function ScripTracker () {
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		tremolo:       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,				// Tremolo volume delta per channel
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		volumeSlide:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Volume slide per channel
+		volumeSlide:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Volume slide per channel
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    		// Current volume of each channel.
+		sampleVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current volume of each channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		samplePos:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Current sample data position.
+		samplePos:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Current sample data position.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleStep:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Sample data step for each channel.
+		sampleStep:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Sample data step for each channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleRemain:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Sample data remaining on each channel.
+		sampleRemain:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Sample data remaining on each channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		noteDelay:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Note delay per channel.
+		noteDelay:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note delay per channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		loopMark:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Row to jump to when looping.
+		loopMark:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Row to jump to when looping.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		loopCount:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Loop counter per channel.
+		loopCount:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Loop counter per channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		envelopePos:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			// Volume and panning envelope position per channel.
+		envelopePos:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Volume and panning envelope position per channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		noteDecay:     [false, false, false, false, false, false, false, false,	// Is the note on this channel decaying.
+		noteDecay:     [false, false, false, false, false, false, false, false,		// Is the note on this channel decaying.
 						false, false, false, false, false, false, false, false,
 						false, false, false, false, false, false, false, false,
 						false, false, false, false, false, false, false, false],
@@ -133,6 +136,9 @@ function ScripTracker () {
 	var tPrev       = (new Date ()).getTime ();
 
 
+	/**
+	 * @expose
+	 */
 	this.load = function (mod) {
 		registers.reset (true);
 		module = mod;
@@ -151,6 +157,7 @@ function ScripTracker () {
 
 	/**
 	 * Start playback if player is stopped and a module is loaded.
+	 * @expose
 	 */
 	this.play = function () {
 		if (!isPlaying && module != null) {	
@@ -162,6 +169,7 @@ function ScripTracker () {
 
 	/**
 	 * Stop playback after the current row has been processed.
+	 * @expose
 	 */
 	this.stop = function () {
 		isPlaying = false;
@@ -170,6 +178,7 @@ function ScripTracker () {
 
 	/**
 	 * Jump to the previous order or restart the current order if we are below row 8.
+	 * @expose
 	 */
 	this.prevOrder = function () {
 		if (registers.currentRow >= 8) {
@@ -189,6 +198,7 @@ function ScripTracker () {
 	
 	/**
 	 * Jump to the top of the next order.
+	 * @expose
 	 */
 	this.nextOrder = function () {
 		if (pattern != null) {
@@ -199,6 +209,7 @@ function ScripTracker () {
 	
 	/**
 	 * Restart the current module.
+	 * @expose
 	 */
 	this.rewind = function () {
 		registers.orderIndex = 0;
@@ -217,6 +228,7 @@ function ScripTracker () {
 
 	/**
 	 * Is the given channel muted?
+	 * @expose
 	 */
 	this.isMuted = function (channel) {
 		return registers.channelMute[channel];
@@ -225,6 +237,7 @@ function ScripTracker () {
 	
 	/**
 	 * Is pattern looping activated?
+	 * @expose
 	 */
 	this.isPatternLoop = function () {
 		return patternLoop;
@@ -233,6 +246,7 @@ function ScripTracker () {
 	
 	/**
 	 * Is the player currently playing?
+	 * @expose
 	 */
 	this.isPlaying = function () {
 		return isPlaying;
@@ -241,6 +255,7 @@ function ScripTracker () {
 	
 	/**
 	 * Set or reset the mute flag of the given channel.
+	 * @expose
 	 */
 	this.setMute = function (channel, mute) {
 		registers.channelMute[channel] = mute;
@@ -249,6 +264,7 @@ function ScripTracker () {
 	
 	/**
 	 * Set the pattern loop flag.
+	 * @expose
 	 */
 	this.setPatternLoop = function (loop) {
 		patternLoop = loop;
@@ -260,6 +276,7 @@ function ScripTracker () {
 	 * reference to ScripTracker as its first parameter. Set the handler to null to remove the callback handler.
 	 *
 	 * handler - A function that s   erves as callback handler.
+	 * @expose
 	 */
 	this.setRowCallbackhandler = function (handler) {
 		rowCallbackHandler = handler;
@@ -268,6 +285,7 @@ function ScripTracker () {
 	
 	/**
 	 * Get an object containing the current player status.
+	 * @expose
 	 */
 	this.getSongData = function () {
 		var playerData = {
@@ -287,8 +305,7 @@ function ScripTracker () {
 			playerData.channel[i] = {};
 			playerData.channel[i].rowData = pattern.toText (registers.currentRow, i);
 			playerData.channel[i].instrument = (registers.channelSample[i] != null) ? registers.channelSample[i].name : "";
-			playerData.channel[i].volume = registers.sampleVolume[i];
-			
+			playerData.channel[i].volume = registers.sampleVolume[i] * (registers.channelSample[i] ? registers.channelSample[i].volEnvelope.getValue (registers.envelopePos[i], registers.noteDecay[i], 1.0) : 1.0);
 		}
 		
 		return playerData;
@@ -297,6 +314,7 @@ function ScripTracker () {
 	
 	this.dump = function () {
 		console.log (registers);
+		console.log (pattern);
 	}
 
 	/**
@@ -312,6 +330,7 @@ function ScripTracker () {
 				console.log ("A player error occurred!");
 				console.log (e);
 				console.log (registers);
+				console.log (pattern);
 				isPlaying = false;
 			}
 		}, 1);
@@ -336,20 +355,17 @@ function ScripTracker () {
 	 */
 	function playRow () {	
 		var row = registers.currentRow;
-		
 		var samplesL = [];
 		var samplesR = [];
 
 		if (registers.patternDelay == 0) {
 			for (var c = 0; c < module.channels; c ++) {			
 				if (pattern.sample[row][c] != 0) {
-					//if (channelSample[c] != module.samples[pattern.sample[row][c] - 1]) {
-						registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
-						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
-						registers.samplePos[c]     = 0;                                          	// Restart sample
-						registers.envelopePos[c]   = 0;												// Reset volume envelope.
-						registers.noteDecay[c]     = false;											// Reset decay.
-					//}
+					registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
+					registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
+					registers.samplePos[c]     = 0;                                          	// Restart sample
+					registers.envelopePos[c]   = 0;												// Reset volume envelope.
+					registers.noteDecay[c]     = false;											// Reset decay.
 					
 					if (module.type != "mod") {
 						registers.channelPan[c] = registers.channelSample[c].panning;				// Set default panning for sample
@@ -390,7 +406,7 @@ function ScripTracker () {
 			for (var c = 0; c < module.channels; c ++) {
 				// Process effects.
 				var param = pattern.effectParam[registers.currentRow][c];
-				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);
+				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);				
 				
 				// Stop playback when ticks is set to 0.
 				if (registers.ticksPerRow == 0) {
@@ -433,7 +449,7 @@ function ScripTracker () {
 						if (registers.channelPan[c] <= 1.0) {
 							// Normal panning.
 							samplesL[sIndex] += sample * (1.0 - registers.channelPan[c]) * (1.0 - pEnvelopeValue) * registers.tremolo[c];
-                        	samplesR[sIndex] += sample *        registers.channelPan[c]  *        pEnvelopeValue  * registers.tremolo[c];
+							samplesR[sIndex] += sample *        registers.channelPan[c]  *        pEnvelopeValue  * registers.tremolo[c];
 						} else {
 							// Surround sound.
 							samplesL[sIndex] += sample * 0.5 * registers.tremolo[c];
@@ -445,16 +461,15 @@ function ScripTracker () {
 
 						// Loop or stop the sample when we reach its end.
 						if (registers.sampleRemain[c] <= 0) {
-						    if (registers.channelSample[c].loopType == registers.channelSample[c].LOOP_FORWARD) {
+						    if (registers.channelSample[c].loopType == SampleLoop.LOOP_FORWARD) {
 						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
 						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
-							} else if (registers.channelSample[c].loopType == registers.channelSample[c].LOOP_PINGPONG) {
+							} else if (registers.channelSample[c].loopType == SampleLoop.LOOP_PINGPONG) {
 						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
 						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
 							} else {
-							    registers.samplePos[c]    = registers.channelSample[c].sampleLength - 1;
-						    	registers.sampleStep[c]   = 0;
-								registers.sampleVolume[c] = 0.0;
+							    registers.samplePos[c]  = registers.channelSample[c].sampleLength - 1;
+						    	registers.sampleStep[c] = 0;
 							}
 						}
 					}
@@ -538,7 +553,7 @@ function ScripTracker () {
 		// When we reach the end of our current pattern jump to the next one.
 		if (registers.currentRow == pattern.rows) {
 			registers.currentRow = 0;
-			if (!patternLoop) registers.orderIndex = (registers.orderIndex + 1) % module.orders.length;
+			if (!patternLoop) registers.orderIndex ++;
 
 			// Handle the skip order marker.
 			while (module.orders[registers.orderIndex] == 0xFE && registers.orderIndex < module.songLength) {
@@ -546,9 +561,10 @@ function ScripTracker () {
 			}
 			
 			// When we reach the end of the song jump back to the restart position.
-			if (registers.orderIndex == module.songLength || module.orders[registers.orderIndex] == 0xFF) {
+			if (registers.orderIndex >= module.songLength || module.orders[registers.orderIndex] == 0xFF) {
 				registers.orderIndex = module.restartPosition;
 			}
+
             pattern = module.patterns[module.orders[registers.orderIndex]];
 		}
 	};

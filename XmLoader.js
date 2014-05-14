@@ -1,6 +1,9 @@
+/**
+  * @expose
+  */
 function XmLoader (fileData) {
-	mod          = new Module ();
-	mod.type     = ModTypes.xm;
+	mod      = new Module ();
+	mod.type = ModTypes.xm;
 	
 	var headerSize      = readDWord (fileData, 60);
 	var offset          = 0;
@@ -40,19 +43,33 @@ function XmLoader (fileData) {
 					if ((note & 0x80) == 0) {
 						pattern.note[r][c]        = note;
 						pattern.sample[r][c]      = fileData.charCodeAt (pDataOffset ++);
-						pattern.volume[r][c]      = Math.min ((fileData.charCodeAt (pDataOffset ++) - 16) / 64, 1.0);
+						var volume = fileData.charCodeAt (pDataOffset ++);
+						if (volume >= 16 && volume <= 80) {
+							pattern.volume[r][c] = Math.min ((volume - 16) / 64, 1.0);
+						} else {
+							pattern.volume[r][c] = 0;
+						}
 						pattern.effect[r][c]      = fileData.charCodeAt (pDataOffset ++);
 						pattern.effectParam[r][c] = fileData.charCodeAt (pDataOffset ++);
 					
 					// Packed note info.
 					} else {
-						if ((note & 0x01) != 0) pattern.note[r][c]        = fileData.charCodeAt (pDataOffset ++);						
-						if ((note & 0x02) != 0) pattern.sample[r][c]      = fileData.charCodeAt (pDataOffset ++);						
+						if ((note & 0x01) != 0) pattern.note[r][c]        = fileData.charCodeAt (pDataOffset ++);								
+						if ((note & 0x02) != 0) pattern.sample[r][c]      = fileData.charCodeAt (pDataOffset ++);	
+
+						// Get channel volume.
 						if ((note & 0x04) != 0) {
-							pattern.volume[r][c] = Math.min ((fileData.charCodeAt (pDataOffset ++) - 16) / 64, 1.0);
+							var volume = fileData.charCodeAt (pDataOffset ++);
+							if (volume >= 16 && volume <= 80) {
+								pattern.volume[r][c] = Math.min ((volume - 16) / 64, 1.0);
+							} else {
+								// TODO: effects from volume data
+								pattern.volume[r][c] = -1.0;
+							}
 						} else {
-							pattern.volume[r][c] = 1.0;
+							pattern.volume[r][c] = -1.0;
 						}
+						
 						if ((note & 0x08) != 0) pattern.effect[r][c]      = fileData.charCodeAt (pDataOffset ++);
 						if ((note & 0x10) != 0) pattern.effectParam[r][c] = fileData.charCodeAt (pDataOffset ++);
 						
@@ -77,7 +94,6 @@ function XmLoader (fileData) {
 
 	// Read instrument and sample data.
 	for (var i = 0; i < mod.sampleCount; i ++) {
-		console.log ("Volume envelope for instrument " + i);
 		var instrumentSize = readDWord (fileData, offset);
 		var iName          = fileData.substring (offset + 4, offset + 26);
 		var iType          = fileData.charCodeAt (offset + 26);
@@ -86,7 +102,7 @@ function XmLoader (fileData) {
 		if (iNSamples == 0) {
 			mod.samples.push (new Sample ()); 
 			offset += instrumentSize;
-		} else {		
+		} else {				
 			// Create volume envelope.
 			var volumeEnvelope     = new Envelope ();			
 			volumeEnvelope.type    = fileData.charCodeAt (offset + 233);
@@ -124,9 +140,7 @@ function XmLoader (fileData) {
 						ep == panEnvelopeLpEnd
 					);
 				}
-			}
-			
-			console.log (volumeEnvelope);
+			}			
 			
 			offset += instrumentSize;
 		
@@ -135,16 +149,16 @@ function XmLoader (fileData) {
 				var sample = new Sample ();
 				
 				sample.sampleLength = readDWord (fileData, offset);
-				sample.loopStart    = readDWord (fileData, offset + 4);
-				sample.loopLength   = readDWord (fileData, offset + 8);
+				sample.loopStart  = readDWord (fileData, offset + 4);
+				sample.loopLength = readDWord (fileData, offset + 8);
 				
 				sample.volume       = fileData.charCodeAt (offset + 12) / 64.0;
 				sample.fineTune     = (fileData.charCodeAt (offset + 13) < 128) ? fileData.charCodeAt (offset + 13) : -((fileData.charCodeAt (offset + 13) ^ 0xFF) + 1);
-				sample.loopType     = (sample.loopLength > 0) ? (fileData.charCodeAt (offset + 14) & 0x03) : sample.LOOP_NONE;
-				sample.dataType     = ((fileData.charCodeAt (offset + 14) & 0x10) == 0) ? sample.TYPE_8BIT : sample.TYPE_16BIT;
+				sample.loopType     = (sample.loopLength > 0) ? (fileData.charCodeAt (offset + 14) & 0x03) : SampleLoop.LOOP_NONE;
+				sample.dataType     = ((fileData.charCodeAt (offset + 14) & 0x10) == 0) ? SampleFormat.FORMAT_8BIT : SampleFormat.FORMAT_16BIT;
 				sample.panning      = fileData.charCodeAt (offset + 15) / 255.0;
 				sample.basePeriod   = fileData.charCodeAt (offset + 16);			
-				sample.dataType    |= (fileData.charCodeAt (offset + 17) == 0xAD) ? sample.TYPE_ADPCM : sample.TYPE_DELTA;
+				sample.dataType    |= (fileData.charCodeAt (offset + 17) == 0xAD) ? SampleFormat.TYPE_ADPCM : SampleFormat.TYPE_DELTA;
 				sample.name         = iName;
 				
 				sample.volEnvelope = volumeEnvelope;
@@ -164,9 +178,9 @@ function XmLoader (fileData) {
 
 				if (sample.sampleLength > 0) {
 					var sampleData = fileData.substring (offset, offset + sample.sampleLength);
-					var is16Bit    = (sample.dataType & sample.TYPE_16BIT) != 0;
+					var is16Bit    = (sample.dataType & SampleFormat.FORMAT_16BIT) != 0;
 					
-					if ((sample.dataType & Sample.TYPE_DELTA) == 0) {
+					if ((sample.dataType & SampleFormat.TYPE_DELTA) == 0) {
 						sample.loadDeltaSample (sampleData, is16Bit);
 					} else {
 						sample.loadAdpcmSample (sampleData, is16Bit);
@@ -175,6 +189,16 @@ function XmLoader (fileData) {
 				
 				offset += sample.sampleLength;
 			}
+		}
+	}
+	
+	// For 16-bit samples the length and loop parameters are stored in bytes, 
+	// so we need to correct this and divide by 2 :).
+	for (var i = 0; i < mod.samples.length; i ++) {
+		if ((mod.samples[i].dataType & SampleFormat.FORMAT_16BIT) != 0) {
+			mod.samples[i].sampleLength /= 2;
+			mod.samples[i].loopStart    /= 2;
+			mod.samples[i].loopLength   /= 2;
 		}
 	}
 	

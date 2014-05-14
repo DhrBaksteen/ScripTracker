@@ -16,6 +16,9 @@ var ModTypes = {
 };
 
  
+ /**
+ * @constructor
+ */
  function Module () {
 	this.name = "";                     // Name of this song
 	this.type = null;					// Module type (mod, s3m, it, xm)

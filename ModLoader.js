@@ -3,6 +3,9 @@
  *
  * fileData - String contents of the MOD file.
  */
+ /**
+  * @expose
+  */
 function ModLoader (fileData) {
 	var mod = new Module ();
 	mod.type = ModTypes.mod;
@@ -52,7 +55,7 @@ function ModLoader (fileData) {
 		sample.volume       = (Math.min (sampleHeader.charCodeAt (25), 64.0)) / 64.0;
 		sample.loopStart	= (sampleHeader.charCodeAt (26) * 256 + sampleHeader.charCodeAt (27)) * 2;
 		sample.loopLength	= (sampleHeader.charCodeAt (28) * 256 + sampleHeader.charCodeAt (29)) * 2;
-		sample.loopType     = (sample.loopLength > 1) ? sample.LOOP_FORWARD : sample.LOOP_NONE;
+		sample.loopType     = (sample.loopLength > 1) ? SampleLoop.LOOP_FORWARD : SampleLoop.LOOP_NONE;
 		
 		if (sample.fineTune > 7) sample.fineTune -= 16;
 		sample.fineTune *= 16;

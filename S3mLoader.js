@@ -1,3 +1,6 @@
+/**
+  * @expose
+  */
 function S3mLoader (fileData) {
 	mod = new Module ();
 	mod.type     = ModTypes.s3m;
@@ -35,7 +38,7 @@ function S3mLoader (fileData) {
 		sample.loopStart    = sampleData.charCodeAt (20) + sampleData.charCodeAt (21) * 256;
 		sample.loopLength   = (sampleData.charCodeAt (24) + sampleData.charCodeAt (25) * 256) - sample.loopStart;
 		sample.volume       = sampleData.charCodeAt (28) / 64.0;
-		sample.loopType     = ((sampleData.charCodeAt (31) & 0x01) != 0) ? sample.LOOP_FORWARD : sample.LOOP_NONE;
+		sample.loopType     = ((sampleData.charCodeAt (31) & 0x01) != 0) ? SampleLoop.LOOP_FORWARD : SampleLoop.LOOP_NONE;
 
 		// Calculate the base note from C4 frequency
 		sample.basePeriod = (sampleData.charCodeAt (32) + sampleData.charCodeAt (33) * 256);
