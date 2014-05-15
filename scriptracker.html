@@ -8,7 +8,6 @@
 		<script type="text/javascript" src="js/lib/jquery-1.9.0.min.js"></script>
 		<script type="text/javascript" src="js/lib/analytics.js"></script>
 		<script type="text/javascript" src="js/ScripTracker.js"></script>
-		<script type="text/javascript" src="js/PlayerUI.js"></script>
 
 		<!-- Dev sources -->
 		<script type="text/javascript" src="js/Module.js"></script>
@@ -20,9 +19,35 @@
 		<script type="text/javascript" src="js/S3mLoader.js"></script>
 		<script type="text/javascript" src="js/ItLoader.js"></script>
 		<script type="text/javascript" src="js/XmLoader.js"></script>
+		<script type="text/javascript" src="js/PlayerUI.js"></script>
 	</head>
 	
 	<body>
+		<div id="dlgWelcome" class="hidden">
+			<div class="logoInset">
+				Version 0.8.7<br/>
+				Code: Maarten Janssen 2013, 2014
+			</div>
+			<p>A tracker written in 100% JavaScript. Currently ScripTracker can play MOD, S3M and XM modules. The player is still in development, so you may experience some bugs. You can download the full source and get in touch with me on <a href="http://github.com/DhrBaksteen/ScripTracker">GitHub</a>.</p>
+			<div class="buttonStrip">
+				<div id="btnWelcomeOk" class="block blockClickable button">Ok</div>
+			</div>
+		</div>
+		
+		<div id="dlgNoWebAudio" class="hidden">
+			<p>Your browser does not support the Web Audio API. Please use Chrome, Safari or Opera. ScripTracker does not yet support Firefox.</p>
+			<div class="buttonStrip">
+				<div id="btnNoAudioOk" class="block blockClickable button">Ok</div>
+			</div>
+		</div>
+		
+		<div id="dlgError" class="hidden">
+			<p>!! A player error has occurred !!<br/><br/><span id="lblError" class="hilight"></span><br/><br/>Unfortunately ScripTracker is not perfect yet :(. ScripTracker will reload, but you should try playing another song next time...</p>
+			<div class="buttonStrip">
+				<div id="btnErrorOk" class="block blockClickable button">Ok</div>
+			</div>
+		</div>
+	
 		<table class="tracker">
 			<tr>
 
@@ -31,24 +56,24 @@
 					<table cellspacing="0" cellpadding="0">
 						<tr>
 							<td>
-								<div id="btnPrevOrder" class="button btnPrev" title="Previous order">
+								<div id="btnPrevOrder" class="block blockClickable btnPrev" title="Previous order">
 								</div>
 							</td>
 							<td>
-								<div id="btnPlayPause" class="button btnPlay" title="Play / Pause">
+								<div id="btnPlayPause" class="block blockClickable btnPlay" title="Play / Pause">
 								</div>
 							</td>
 							<td>
-								<div id="btnPattern" class="button btnPattern" title="Pattern repeat">
+								<div id="btnPattern" class="block blockClickable btnPattern" title="Pattern repeat">
 								</div>
 							</td>
 							<td>
-								<div id="btnNextOrder" class="button btnNext" title="Next order">
+								<div id="btnNextOrder" class="block blockClickable btnNext" title="Next order">
 								</div>
 							</td>
 							<td class="spacer10"></td>
 							<td>
-								<div id="btnEject" class="button btnEject" title="Open file">
+								<div id="btnEject" class="block blockClickable btnEject" title="Open file">
 								</div>
 							</td>
 						</tr>
@@ -160,6 +185,12 @@
 			</tr>
 		</table>
 
+		<!-- Dialog container -->
+		<div id="dialogOverlay" class="overlay">
+			<div id="dialog" class="dialog block">				
+			</div>
+		</div>	
+		
 		<input id="modFileChooser" type="file" style="display: none;"/>
 	</body>
 </html>

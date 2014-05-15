@@ -339,6 +339,14 @@ function ScripTracker () {
 	
 	
 	/**
+	 * Get the number of rows in the current pattern.
+	 */
+	this.getPatternRows = function () {
+		return pattern.rows;
+	};
+	
+	
+	/**
 	 * Get the volume [0.0, 1.0] of the given channel.
 	 */
 	this.getChannelVolume = function (channel) {
@@ -382,11 +390,13 @@ function ScripTracker () {
 			try {
 				playerThread ();
 			} catch (e) {
-				console.log ("A player error occurred!");
 				console.log (e);
 				console.log (registers);
-				console.log (pattern);
-				isPlaying = false;
+				_this.stop  ();
+				
+				if (errorHandler != null) {
+					errorHandler (e.message);
+				}
 			}
 		}, 1);
 	
@@ -416,21 +426,23 @@ function ScripTracker () {
 		if (registers.patternDelay == 0) {
 			for (var c = 0; c < module.channels; c ++) {			
 				if (pattern.sample[row][c] != 0) {
-					registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   	// Set current sample
-					registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample
-					registers.samplePos[c]     = 0;                                          	// Restart sample
-					registers.envelopePos[c]   = 0;												// Reset volume envelope.
-					registers.noteDecay[c]     = false;											// Reset decay.
-					
-					if (module.type != "mod") {
-						registers.channelPan[c] = registers.channelSample[c].panning;				// Set default panning for sample
-					}
-					
-					// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
-					if (pattern.volume[row][c] > -1) {
-						registers.sampleVolume[c] = pattern.volume[row][c];
-					} else {
-						registers.sampleVolume[c] = registers.channelSample[c].volume;	
+					registers.channelSample[c] = module.samples[pattern.sample[row][c] - 1];   		// Set current sample
+					if (registers.channelSample[c] != null) {										// Do we actually have a sample now?
+						registers.sampleRemain[c] = registers.channelSample[c].sampleLength;		// Repeat length of this sample
+						registers.samplePos[c]    = 0;                                          	// Restart sample
+						registers.envelopePos[c]  = 0;												// Reset volume envelope.
+						registers.noteDecay[c]    = false;											// Reset decay.
+						
+						if (module.type != "mod") {
+							registers.channelPan[c] = registers.channelSample[c].panning;				// Set default panning for sample
+						}
+						
+						// Set default sample volume or row volume (this one also allows volumes of 0 comming from row)
+						if (pattern.volume[row][c] > -1) {
+							registers.sampleVolume[c] = pattern.volume[row][c];
+						} else {
+							registers.sampleVolume[c] = registers.channelSample[c].volume;	
+						}
 					}
 				}
 				
@@ -443,7 +455,7 @@ function ScripTracker () {
 				// This row contains a note and we are not doing a slide to note.
 				if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
 					if (pattern.note[row][c] == 97) {
-						registers.noteDecay[c]    = true;
+						registers.noteDecay[c] = true;
 					} else if (registers.channelSample[c] != null) {
 						registers.channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - registers.channelSample[c].basePeriod) * 64 - registers.channelSample[c].fineTune / 2;
 						var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[c]) / 768);
@@ -485,6 +497,9 @@ function ScripTracker () {
 				
 				// Generate samples for current tick and channel.
 				var sIndex = registers.samplesPerTick * t;
+				var vol    = 1.0;
+				var pan    = 0.5;
+				
 				for (var s = 0; s < registers.samplesPerTick; s ++) {
 					if (c == 0) {
 						samplesL[sIndex] = 0.0;
@@ -492,25 +507,28 @@ function ScripTracker () {
 					}
 
 			        if (registers.channelSample[c] != null && registers.noteDelay[c] == 0 && !registers.channelMute[c]) {
-						// Get envelope values and increment envelope position.
+						// Get envelope values and calculate volume and pan for samples during this tick.
 						if (s == 0) {
-							vEnvelopeValue = registers.channelSample[c].volEnvelope.getValue (registers.envelopePos[c], registers.noteDecay[c], 1.0);
+							vEnvelopeValue = registers.channelSample[c].volEnvelope.getValue (registers.envelopePos[c], registers.noteDecay[c], 1.0, (c > 4 && c < 8));
 							pEnvelopeValue = registers.channelSample[c].panEnvelope.getValue (registers.envelopePos[c], registers.noteDecay[c], 0.5);
 							registers.envelopePos[c] ++;
+							
+							vol = registers.sampleVolume[c] * vEnvelopeValue * registers.tremolo[c];
+							pan = Math.max (0.0, Math.min (registers.channelPan[c] + ((pEnvelopeValue - 0.5) * ((2 - Math.abs (registers.channelPan[c] - 2)) / 0.5)), 1.0));
 						}
 					
-			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])] * registers.sampleVolume[c] * vEnvelopeValue;						
+			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])];						
 
 						if (registers.channelPan[c] <= 1.0) {
 							// Normal panning.
-							samplesL[sIndex] += sample * (1.0 - registers.channelPan[c]) * (1.0 - pEnvelopeValue) * registers.tremolo[c];
-							samplesR[sIndex] += sample *        registers.channelPan[c]  *        pEnvelopeValue  * registers.tremolo[c];
+							samplesL[sIndex] += sample * (1.0 - pan) * vol;
+							samplesR[sIndex] += sample *        pan  * vol;
 						} else {
 							// Surround sound.
-							samplesL[sIndex] += sample * 0.5 * registers.tremolo[c];
-                        	samplesR[sIndex] -= sample * 0.5 * registers.tremolo[c];
+							samplesL[sIndex] += sample * 0.5 * vol;
+                        	samplesR[sIndex] -= sample * 0.5 * vol;
 						}
-
+						
 						registers.samplePos[c]    += registers.sampleStep[c];
 						registers.sampleRemain[c] -= registers.sampleStep[c];
 

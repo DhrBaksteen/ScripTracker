@@ -7,8 +7,22 @@ body {
 	background-image: url(../res/background.png);
 	font-size: 16px;
 	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
 }
+
+h1 {
+	color: #FCDC84;
+	font-size: 16px;
+	font-weight: normal;
+	margin: 0px;
+	padding: 0px;
+	
+}
+
+a {
+	color: #FCDC84;
+	text-decoration: none;
+}
+
 
 td.spacer10 {
 	width: 10px;
@@ -18,9 +32,6 @@ td.spacer10 {
 table.tracker {
 	background: #A49054;
 	color: #000000;
-	font-size: 16px;
-	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
 	border: outset 2px;
 	border-color: #FCDC84 #504428 #504428 #FCDC84;
 	-webkit-border-top-left-radius: 10px;
@@ -48,12 +59,10 @@ table.patternView {
 	width: 0px;
 }
 
+
 td.dataCell {
 	background-color: #000000;
     color: #AAAAAA;
-	font-size: 16px;
-	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
 	padding-left: 4px;
 	padding-right: 4px;
 	text-align: left;
@@ -62,9 +71,7 @@ td.dataCell {
 
 td.dataLabelCell {
 	color: #000000;
-    font-size: 16px;
-	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
+    
 	padding-left: 4px;
 	padding-right: 4px;
 	text-align: right;
@@ -118,9 +125,6 @@ td.vuCell {
 	padding-left: 4px;
 	padding-right: 4px;
 	color: #AAAAAA;
-	font-size: 16px;
-	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
 	width: 116px;
 	height: 16px;
 	overflow: hidden;
@@ -154,54 +158,12 @@ div.vuRedOn {
 
 
 /**
- * Styles for big buttons in various states.
- */
-div.button {
-	cursor: pointer;
-	background: #A49054;
-	color: #000000;
-	font-size: 16px;
-	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
-	border: outset 2px;
-	border-color: #FCDC84 #504428 #504428 #FCDC84;
-	-webkit-border-top-left-radius: 10px;
-	-webkit-border-bottom-right-radius: 10px;
-	-moz-border-radius-topleft: 10px;
-	-moz-border-radius-bottomright: 10px;
-	border-top-left-radius: 10px;
-	border-bottom-right-radius: 10px;
- 	padding: 10px;
-	margin: 1px;
-}
-
-
-div.button:hover {
-	background: #504428;
-	color: #FCDC84;
-	padding: 10px;
-}
-
-
-div.button:active {
-	border: inset 2px;
-	border-color: #504428 #FCDC84 #FCDC84 #504428;
-	padding: 9px;
-	padding-left: 11px;
-	padding-top: 11px;
-}
-
-
-/**
  * Styles for buttons in various states.
  */
 div.smallButton {
 	cursor: pointer;
 	background: #A49054;
 	color: #000000;
-	font-size: 16px;
-	font-family: PerfectDOS, Courier New;
-	/* font-weight: bold; */
 	border: outset 2px;
 	border-color: #FCDC84 #504428 #504428 #FCDC84;
 	-webkit-border-top-left-radius: 10px;
@@ -238,6 +200,7 @@ div.smallButton:active {
 div.btnPlay {
 	width: 16px;
 	height: 16px;
+	margin-right: 2px;
 	background-image: url(../res/btnplay.png);
 	background-repeat: no-repeat;
 	background-origin: content-box;
@@ -256,6 +219,7 @@ div.btnPlay:hover {
 div.btnPause {
 	width: 16px;
 	height: 16px;
+	margin-right: 2px;
 	background-image: url(../res/btnpause.png);
 	background-repeat: no-repeat;
 	background-origin: content-box;
@@ -274,6 +238,7 @@ div.btnPause:hover {
 div.btnPrev {
 	width: 16px;
 	height: 16px;
+	margin-right: 2px;
 	background-image: url(../res/btnprev.png);
 	background-repeat: no-repeat;
 	background-origin: content-box;
@@ -292,6 +257,7 @@ div.btnPrev:hover {
 div.btnNext {
 	width: 16px;
 	height: 16px;
+	margin-right: 2px;
 	background-image: url(../res/btnnext.png);
 	background-repeat: no-repeat;
 	background-origin: content-box;
@@ -305,11 +271,31 @@ div.btnNext:hover {
 
 
 /**
+ * Styles for eject button and mouse over.
+ */
+div.btnEject {
+	width: 16px;
+	height: 16px;
+	margin-right: 2px;
+	background-image: url(../res/btneject.png);
+	background-repeat: no-repeat;
+	background-origin: content-box;
+}
+
+div.btnEject:hover {
+	background-image: url(../res/btneject2.png);
+	background-repeat: no-repeat;
+	background-origin: content-box;
+}
+
+
+/**
  * Styles for repeat pattern button and mouse over.
  */
 div.btnPattern {
 	width: 16px;
 	height: 16px;
+	margin-right: 2px;
 	background-image: url(../res/btnpattern.png);
 	background-repeat: no-repeat;
 	background-origin: content-box;
@@ -396,22 +382,7 @@ div.btnPatternDown:hover {
 
 
 
-/**
- * Styles for eject button and mouse over.
- */
-div.btnEject {
-	width: 16px;
-	height: 16px;
-	background-image: url(../res/btneject.png);
-	background-repeat: no-repeat;
-	background-origin: content-box;
-}
 
-div.btnEject:hover {
-	background-image: url(../res/btneject2.png);
-	background-repeat: no-repeat;
-	background-origin: content-box;
-}
 
 
 td.infoSong {
@@ -479,7 +450,112 @@ table.scrollTrack {
 	width: 100%;
 }
 
+div.overlay {
+	display: none;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 100%;
+	height: 100%;
+	background: rgba(0,0,0,0.5);
+	z-index: 100;
+}
 
+div.dialog {
+	position: absolute;
+	width: 480px;
+	height: 230px;
+	top: 50%;
+    left: 50%;
+    margin-top: -125px;
+    margin-left: -250px;	
+	box-shadow: 16px 16px 0px rgba(0,0,0,0.5);
+	padding: 10px;
+}
+
+div.dialog div.buttonStrip {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+}
+
+div.dialog div.button {
+	float: right;
+	width: 100px;
+	text-align: center;
+}
+
+div.logoInset {
+	border: inset 2px;
+	border-color: #504428 #FCDC84 #FCDC84 #504428;
+	-webkit-border-top-left-radius: 10px;
+	-webkit-border-bottom-right-radius: 10px;
+	-moz-border-radius-topleft: 10px;
+	-moz-border-radius-bottomright: 10px;
+	border-top-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+	background-image: url(../res/scriptracker.png);
+	background-repeat: no-repeat;
+	background-position: center 10px;
+	padding: 45px 10px 10px 10px;
+	text-align: center;
+	font-size: 10px;
+	font-family: Courier New;
+	font-weight: bold;
+	color: #504428;
+	margin-bottom: 4px;
+}
+
+/**
+ * Style for block.
+ */
+.block {
+	background: #A49054;
+	color: #000000;
+	font-size: 16px;
+	font-family: PerfectDOS, Courier New;
+	border: outset 2px;
+	border-color: #FCDC84 #504428 #504428 #FCDC84;
+	-webkit-border-top-left-radius: 10px;
+	-webkit-border-bottom-right-radius: 10px;
+	-moz-border-radius-topleft: 10px;
+	-moz-border-radius-bottomright: 10px;
+	border-top-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+	padding: 10px;
+}
+
+
+/**
+ * Clickable block hover and clicked states.
+ */
+.blockClickable:hover {
+	background: #504428;
+	color: #FCDC84;
+	cursor: pointer;
+}
+
+.blockClickable:active {
+	border: inset 2px !important;
+	border-color: #504428 #FCDC84 #FCDC84 #504428 !important;
+	padding: 9px !important;
+	padding-left: 11px !important;
+	padding-top: 11px !important;
+}
+
+
+/**
+ * Basic common styles.
+ */
+ .hilight {
+	color: #FCDC84;
+ }
+ 
 .fullWidth {
 	width: 100%;
+}
+
+
+.hidden {
+	display: none;
 }

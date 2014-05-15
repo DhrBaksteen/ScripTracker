@@ -5,17 +5,34 @@ var solo = false;
 var scroll = 0;
 var cellLookup = [];
 
-$(document).ready (function () {
-	try {
-		context = new webkitAudioContext ();
-	} catch (e) {
-		alert ("Web Audio API is not supported in this browser");
-	}
+// Dialog state info.
+var Dialog = {
+	contentSourceID: null,
+	content:         null,
+	onOpen:          null,
+	onClose:         null
+}
 
+
+$(document).ready (function () {
+	showDialog ({
+		contentID: "dlgWelcome", 
+		closeButtonID: "btnWelcomeOk",
+		onOpen: function () {
+			setTimeout (function () {
+				closeDialog ();
+			}, 20000);
+		},
+		onClose: function () {
+			init ();
+		}
+	});
+
+	
 	for (var i = 0; i < 16; i ++) {
 		cellLookup[i] = [];
 		var rowData = $("<tr/>");
-		var cell = $("<td class=\"patternCellBorder dataCell\">" + ((i < 10) ? "0" : "") + i + "</td>");
+		var cell = $("<td class=\"patternCellBorder dataCell\">" + ((i < 16) ? "0" : "") + i.toString (16).toUpperCase () + "</td>");
 		rowData.append (cell);
 		cellLookup[i][0] = cell;
 		
@@ -27,6 +44,33 @@ $(document).ready (function () {
 		rowData.insertBefore ("#trPatScroll");	
 	}
 
+	
+	$(window).resize(function(){
+		$('.tracker').css ({
+			position:'absolute',
+			left: ($(window).width  () - $('.tracker').outerWidth  ())  / 2,
+			top:  ($(window).height () - $('.tracker').outerHeight ()) / 2
+		});
+	});
+
+	$(window).resize();
+});
+
+
+function init () {
+	// Does the browser support the Web Audio API??
+	try {
+		context = new webkitAudioContext ();
+	} catch (e) {
+		showDialog ({
+			contentID: "dlgNoWebAudio",
+			closeButtonID: "btnNoAudioOk"
+		});
+
+		return;
+	}
+	
+	
 	$("#modFileChooser").change (function (e) {
 		var file = e.target.files[0];
 
@@ -176,19 +220,7 @@ $(document).ready (function () {
 			setScroll (scroll + 1);
 		}
 	});
-	
-
-	$(window).resize(function(){
-		$('.tracker').css ({
-			position:'absolute',
-			left: ($(window).width  () - $('.tracker').outerWidth  ())  / 2,
-			top:  ($(window).height () - $('.tracker').outerHeight ()) / 2
-		});
-	});
-
-	$(window).resize();
-});
-
+}
 
 function playerUpdate (player) {
 	var row = player.getCurrentRow ();
@@ -200,9 +232,9 @@ function playerUpdate (player) {
 	$("#txtRow").text      (row);
 	$("#txtTempo").text    (player.getCurrentBPM () + "/" + player.getCurrentTicks ());
 
-	var firstRow = Math.min (Math.max (0, row - 7), 48);
+	var firstRow = Math.max (0, Math.min (row - 7, player.getPatternRows () - 16));
 	for (var i = firstRow; i < firstRow + 16; i ++) {
-		cellLookup [i - firstRow][0].text ((i < 10 ? "0" : "") + i);
+		cellLookup [i - firstRow][0].text (((i < 16) ? "0" : "") + i.toString (16).toUpperCase ());
 		for (var j = 0; j < 8; j ++) {					
 			cellLookup [i - firstRow][j + 1].text (player.getNoteInfo (j + scroll, i));
 			cellLookup [i - firstRow][j + 1].css ("background", (i % 4 == 0) ? "#202020" : "#000000");
@@ -212,9 +244,9 @@ function playerUpdate (player) {
 	// Hilight current row.
 	$("#patternView td").removeClass ("rowPlayHead");
 	if (row < 8) {
-		$("#patternView tr:nth-child(" + (row + 1) + ") td").addClass ("rowPlayHead");
-	} else if (row > 55) {
-		$("#patternView tr:nth-child(" + (row - 46) + ") td").addClass ("rowPlayHead");
+		$("#patternView tr:nth-child(" + (row + 2) + ") td").addClass ("rowPlayHead");
+	} else if (row > player.getPatternRows () - 9) {
+		$("#patternView tr:nth-child(" + (row - (player.getPatternRows () - 18)) + ") td").addClass ("rowPlayHead");
 	} else {
 		$("#patternView tr:nth-child(9) td").addClass ("rowPlayHead");
 	}
@@ -238,7 +270,21 @@ function playerUpdate (player) {
 				}
 			}
 		});
-	}
+	}	
+}
+
+
+function errorHandler (msg) {
+	showDialog ({
+		contentID: "dlgError",
+		closeButtonID: "btnErrorOk",
+		onOpen: function () {
+			$("#lblError").text (msg);
+		},
+		onClose: function () {
+			location.reload ();
+		}
+	});
 }
 
 
@@ -259,4 +305,80 @@ function setScroll (leftCol) {
 	}
 	
 	$("#scrollButton").css ("margin-left", ((892 / 24) * leftCol) + "px");
+}
+
+
+/**
+ * Open a dialog with given params object.
+ */
+function showDialog (params) {
+	// Copy content from source container if a contentID is defined.
+	if (params.contentID) {
+		Dialog.contentSourceID = params.contentID;
+		Dialog.content = $("#" + params.contentID).html ();
+		$("#" + params.contentID).empty ();
+		$("#dialog").append (Dialog.content);
+	} else {
+		Dialog.contentSourceID = null;
+		Dialog.content         = null;
+		return;
+	}
+	
+	// Call dialog on open function if defined.
+	if (params.onOpen) {
+		Dialog.onOpen = params.onOpen;
+		params.onOpen ();
+	} else {
+		Dialog.onOpen = null;
+	}
+	
+	// Register dialog on close function if defined.
+	if (params.onClose) {
+		Dialog.onClose = params.onClose;
+	} else {
+		Dialog.onClose = params.onClose;
+	}
+	
+	// Set close dialog call to close button if defined.
+	if (params.closeButtonID) {
+		$("#" + params.closeButtonID).click (function () {
+			closeDialog ();
+		});
+	}
+
+	// Closing the dialog with the Enter key, cause why not!?
+	$(document).keydown (function (e) {
+		if (e.keyCode == 13) {
+			closeDialog ();
+		}
+	});
+	
+	$("#dialogOverlay").show ();
+}
+
+
+/**
+ * Close the current dialog.
+ */
+function closeDialog () {
+	// If we have dialog content call the onClose and copy content back to the source container.
+	if (Dialog.content) {
+		$("#" + Dialog.contentSourceID).append (Dialog.content);
+	}
+	
+	var closeHandler = Dialog.onClose;
+	
+	// Clean up dialog info.
+	Dialog.constenSourceID = null;
+	Dialog.content         = null;
+	Dialog.onOpen          = null;
+	Dialog.onClose         = null;
+	
+	// Close dialog box.
+	$("#dialogOverlay").hide ();
+	$("#dialog").empty ();
+	
+	if (closeHandler) {
+		closeHandler ();
+	}
 }
