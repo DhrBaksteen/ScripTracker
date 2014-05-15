@@ -1,4 +1,5 @@
 function ItLoader (fileData) {
+/*
 	var mod  = new Module ();
 	mod.type = ModTypes.it;
 	
@@ -50,4 +51,5 @@ function ItLoader (fileData) {
 	}
 	
 	return mod;
+*/
 }

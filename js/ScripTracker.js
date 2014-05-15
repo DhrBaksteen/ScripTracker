@@ -133,7 +133,7 @@ function ScripTracker () {
 	var isPlaying   = false;						// Is the player currently playing?
 	var patternLoop = false;						// Do not jump to next order, but repeat current.
 	var audioCtx    = new webkitAudioContext ();	
-	var tPrev       = (new Date ()).getTime ();
+	var tPrev       = 0
 
 
 	/**
@@ -162,6 +162,7 @@ function ScripTracker () {
 	this.play = function () {
 		if (!isPlaying && module != null) {	
 			isPlaying = true;
+			tPrev = (new Date ()).getTime ();
 			playerThread ();
 		}
 	};
@@ -401,7 +402,7 @@ function ScripTracker () {
 		}, 1);
 	
 		var t = (new Date ()).getTime ();
-		if (t - tPrev >= registers.rowDelay - 2) {						
+		if (t - tPrev >= registers.rowDelay - 2) {
 			// Process new row.
 			playRow ();
 

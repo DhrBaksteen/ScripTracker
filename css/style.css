@@ -7,6 +7,12 @@ body {
 	background-image: url(../res/background.png);
 	font-size: 16px;
 	font-family: PerfectDOS, Courier New;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-o-user-select: none;
+	user-select: none; 
+	cursor: default;
 }
 
 h1 {

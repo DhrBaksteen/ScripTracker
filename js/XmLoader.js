@@ -297,8 +297,6 @@ function parseEffect (effect, param) {
 		default:
 			return Effects.NONE;
 	}
-	
-	return Effects.NONE;
 }
 
 
