@@ -289,17 +289,7 @@ function ScripTracker () {
 				pattern.effect[registers.currentRow][c] == Effects.SET_TEMPO) {
 				var param = pattern.effectParam[registers.currentRow][c];
 				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);
-			}
-		}
-		
-
-		// Create sample buffer for each tick in the current row.
-		for (var t = 0; t < registers.ticksPerRow; t ++) {
-			for (var c = 0; c < module.channels; c ++) {
-				// Process effects.
-				var param = pattern.effectParam[registers.currentRow][c];
-				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);
-
+				
 				// Stop and reset playback when ticks is set to 0.
 				if (registers.ticksPerRow == 0) {
 					isPlaying = false;
@@ -319,6 +309,16 @@ function ScripTracker () {
 
 					return;
 				}
+			}
+		}
+		
+
+		// Create sample buffer for each tick in the current row.
+		for (var t = 0; t < registers.ticksPerRow; t ++) {
+			for (var c = 0; c < module.channels; c ++) {
+				// Process effects.
+				var param = pattern.effectParam[registers.currentRow][c];
+				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);				
 
 				// Generate samples for current tick and channel.
 				var sIndex = registers.samplesPerTick * t;
