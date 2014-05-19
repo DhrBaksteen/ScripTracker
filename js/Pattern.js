@@ -18,7 +18,7 @@ function Pattern (rows, columns) {
 	this.columns = columns;				// Number of channels in this pattern.
 	
 	this.note        = [];				// Array of notes for each row and each channel
-	this.sample      = [];				// Array of sample indexes for each row and each channel
+	this.instrument  = [];				// Array of instrument indexes for each row and each channel
 	this.volume      = [];				// Array of volume settings for each row and each channel
 	this.effect      = [];				// Array of effect indexes for each row and each channel
 	this.effectParam = [];				// Array of effect parameters for each row and each channel
@@ -26,13 +26,13 @@ function Pattern (rows, columns) {
 	// Initialize emty pattern.
 	for (var i = 0; i < rows; i ++) {
 			this.note[i]        = [];
-			this.sample[i]      = [];
+			this.instrument[i]  = [];
 			this.volume[i]      = [];
 			this.effect[i]      = [];
 			this.effectParam[i] = [];
 		for (var j = 0; j < columns; j ++) {
 			this.note[i][j]        = 0;
-			this.sample[i][j]      = 0;
+			this.instrument[i][j]  = 0;
 			this.volume[i][j]      = 0;
 			this.effect[i][j]      = Effects.NONE;
 			this.effectParam[i][j] = 0;
@@ -41,7 +41,6 @@ function Pattern (rows, columns) {
 
 	var noteNames = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"];
 	var hexValues = "0123456789ABCDEF";
-
 
 
 	/**
@@ -69,18 +68,18 @@ function Pattern (rows, columns) {
 			text += Math.floor ((this.note[row][channel] - 1) / 12);
 		}
 
-		// Write sample
+		// Write instrument
 		text += " ";
-		if (this.sample[row][channel] != 0) {
-			text += hexValues.charAt (Math.floor (this.sample[row][channel] / 16));
-			text += hexValues.charAt (this.sample[row][channel] % 16);
+		if (this.instrument[row][channel] != 0) {
+			text += hexValues.charAt (Math.floor (this.instrument[row][channel] / 16));
+			text += hexValues.charAt (this.instrument[row][channel] % 16);
 		} else {
 			text += "..";
 		}
 
 		// Write volume data
 		text += " ";
-		if (this.volume[row][channel] > -1 && this.sample[row][channel] != 0) {
+		if (this.volume[row][channel] > -1 && this.instrument[row][channel] != 0) {
 			var vol = this.volume[row][channel] * 64;
             text += hexValues.charAt (Math.floor (vol / 16));
 			text += hexValues.charAt (vol % 16);

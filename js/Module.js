@@ -31,9 +31,9 @@ var ModTypes = {
 	this.patternCount = 0;				// Number of patterns in this module
 	this.patterns     = [];				// Patterns used in this module
 	
-	this.sampleCount  = 0;				// Number of samples in this module
-	this.samples      = [];				// Samples used in this module
-	this.signedSample = true;			// Is sample data signed or unsigned
+	this.instrumentCount = 0;			// Number of instruments in this module
+	this.instruments     = [];			// Instruments used in this module
+	this.signedSample    = true;		// Is sample data signed or unsigned
 
 	this.defaultTempo  = 6;             // Default number of ticks per row
 	this.defaultBPM    = 125;           // Default BPM

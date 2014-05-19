@@ -28,6 +28,8 @@ function S3mLoader (fileData) {
 
 	// Load samples.
 	for (var i = 0; i < mod.sampleCount; i ++) {
+		var instrument = new Instrument ();
+	
 		var sampleOffset = (fileData.charCodeAt (samplePtrOffset + i * 2) + fileData.charCodeAt (samplePtrOffset + i * 2 + 1) * 256) * 16;
 		var sampleData   = fileData.substring (sampleOffset, sampleOffset + 80);
 		var sample       = new Sample ();
@@ -58,7 +60,8 @@ function S3mLoader (fileData) {
 			sample.loadStereoSample (fileData.substring (dataOffset, dataOffset + dataLength), is16Bit, mod.signedSample);
 		}
 		
-		mod.samples.push (sample);
+		instrument.samples.push (sample);
+		mod.instruments.push (instrument);
 	}
 	
 	// Load patterns.
@@ -92,7 +95,7 @@ function S3mLoader (fileData) {
 	                	pattern.note[i][channel] = (patternData.charCodeAt (pos) % 16) + octave + 1;
 					}
 
-					pattern.sample[i][channel] = patternData.charCodeAt (++pos);
+					pattern.instrument[i][channel] = patternData.charCodeAt (++pos);
 				}
 
 				if ((data & 0x40) != 0) {

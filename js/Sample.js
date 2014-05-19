@@ -50,9 +50,6 @@ function Sample () {
 
 	this.volume   = 1.0;                // Default volume of this sample
 	this.panning  = 0.5;				// Default volume multiplication factor for channels
-	
-	this.volEnvelope = new Envelope ();	// Empty default envelope for volume.
-	this.panEnvelope = new Envelope ();	// Empty default envelope for panning.
 
 	this.basePeriod = 0;                // Base period of this sample
 	this.fineTune   = 0;                // Finetune of this sample

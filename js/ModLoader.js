@@ -47,6 +47,8 @@ function ModLoader (fileData) {
 	// Create samples and add them to the module.
     for (var i = 0; i < 31; i ++) {
 		var sampleHeader = fileData.substring (20 + i * 30, 50 + i * 30);
+		
+		var instrument = new Instrument ();
 
 		var sample = new Sample ();
 		sample.name         = sampleHeader.substring (0, 22);
@@ -59,7 +61,9 @@ function ModLoader (fileData) {
 		
 		if (sample.fineTune > 7) sample.fineTune -= 16;
 		sample.fineTune *= 16;
-		mod.samples.push (sample);
+		
+		instrument.samples.push (sample);
+		mod.instruments.push (instrument);
 	}
 
 	// Fill the order table and get the number of patterns in this mod
@@ -115,8 +119,8 @@ function ModLoader (fileData) {
 					}
 				}
 
-				pattern.sample[r][c]      = (byte1 & 0xF0) | ((byte3 & 0xF0) / 16);
-				pattern.volume[r][c]      = -1;
+				pattern.instrument[r][c] = (byte1 & 0xF0) | ((byte3 & 0xF0) / 16);
+				pattern.volume[r][c]     = -1;
 				
                 pattern.effectParam[r][c] = byte4;
 				if ((byte3 & 0x0F) == 0 && byte4 != 0) {
@@ -211,12 +215,12 @@ function ModLoader (fileData) {
 
 	// Load sample data.
     var filePos = patternCount * patternLength + 1084;
-	for (var i = 0; i < mod.samples.length; i ++) {
-	    mod.samples[i].loadSample (fileData.substring (filePos, filePos + mod.samples[i].sampleLength), false, mod.signedSample);
-        mod.samples[i].sample[0] = 0;
-        mod.samples[i].sample[1] = 0;
+	for (var i = 0; i < mod.instruments.length; i ++) {
+	    mod.instruments[i].samples[0].loadSample (fileData.substring (filePos, filePos + mod.instruments[i].samples[0].sampleLength), false, mod.signedSample);
+        mod.instruments[i].samples[0].sample[0] = 0;
+        mod.instruments[i].samples[0].sample[1] = 0;
 
-	    filePos += mod.samples[i].sampleLength;
+	    filePos += mod.instruments[i].samples[0].sampleLength;
 	}
 
 	return mod;

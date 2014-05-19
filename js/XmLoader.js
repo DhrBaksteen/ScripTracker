@@ -13,7 +13,7 @@ function XmLoader (fileData) {
 	mod.restartPosition = readWord (fileData, 66);
 	mod.channels        = Math.min (readWord (fileData, 68), 32);		// Hard limit number of channels to 32
 	mod.patternCount    = readWord (fileData, 70);
-	mod.sampleCount     = readWord (fileData, 72);
+	mod.instrumentCount = readWord (fileData, 72);
 	mod.defaultTempo    = readWord (fileData, 76);
 	mod.defaultBPM      = readWord (fileData, 78);
 	
@@ -41,8 +41,8 @@ function XmLoader (fileData) {
 					
 					// Regular note info.
 					if ((note & 0x80) == 0) {
-						pattern.note[r][c]        = note;
-						pattern.sample[r][c]      = fileData.charCodeAt (pDataOffset ++);
+						pattern.note[r][c]       = note;
+						pattern.instrument[r][c] = fileData.charCodeAt (pDataOffset ++);
 						var volume = fileData.charCodeAt (pDataOffset ++);
 						if (volume >= 16 && volume <= 80) {
 							pattern.volume[r][c] = Math.min ((volume - 16) / 64, 1.0);
@@ -54,8 +54,8 @@ function XmLoader (fileData) {
 					
 					// Packed note info.
 					} else {
-						if ((note & 0x01) != 0) pattern.note[r][c]        = fileData.charCodeAt (pDataOffset ++);								
-						if ((note & 0x02) != 0) pattern.sample[r][c]      = fileData.charCodeAt (pDataOffset ++);	
+						if ((note & 0x01) != 0) pattern.note[r][c]       = fileData.charCodeAt (pDataOffset ++);								
+						if ((note & 0x02) != 0) pattern.instrument[r][c] = fileData.charCodeAt (pDataOffset ++);	
 
 						// Get channel volume.
 						if ((note & 0x04) != 0) {
@@ -91,18 +91,25 @@ function XmLoader (fileData) {
 		offset += pHeaderSize + pDataSize;
 	}
 	
-
 	// Read instrument and sample data.
-	for (var i = 0; i < mod.sampleCount; i ++) {
-		var instrumentSize = readDWord (fileData, offset);
-		var iName          = fileData.substring (offset + 4, offset + 26);
-		var iType          = fileData.charCodeAt (offset + 26);
-		var iNSamples      = readWord (fileData, offset + 27);
+	for (var i = 0; i < mod.instrumentCount; i ++) {
+		var instrument        = new Instrument ();
+		var instrumentSize    = readDWord (fileData, offset);
+		instrument.name       = fileData.substring (offset + 4, offset + 26);
+		instrument.type       = fileData.charCodeAt (offset + 26);
+		instrument.numSamples = readWord (fileData, offset + 27);
 				
-		if (iNSamples == 0) {
-			mod.samples.push (new Sample ()); 
+
+		if (instrument.numSamples == 0) {
 			offset += instrumentSize;
-		} else {				
+			
+		} else {						
+			// Read instrument keymap form instrument --> sample linking.
+			// For now load sample indexes, after loading sample data replace indexes by sample references.
+			for (var k = 0; k < 96; k ++) {
+				instrument.sampleKeyMap[k] = fileData.charCodeAt (offset + 33 + k);
+			}
+		
 			// Create volume envelope.
 			var volumeEnvelope     = new Envelope ();			
 			volumeEnvelope.type    = fileData.charCodeAt (offset + 233);
@@ -142,16 +149,17 @@ function XmLoader (fileData) {
 				}
 			}			
 			
+			instrument.setVolumeEnvelope  (volumeEnvelope);
+			instrument.setPanningEnvelope (panEnvelope);			
 			offset += instrumentSize;
 		
 			// Load sample headers.
-			for (var s = 0; s < iNSamples; s ++) {
+			for (var s = 0; s < instrument.numSamples; s ++) {
 				var sample = new Sample ();
 				
 				sample.sampleLength = readDWord (fileData, offset);
-				sample.loopStart  = readDWord (fileData, offset + 4);
-				sample.loopLength = readDWord (fileData, offset + 8);
-				
+				sample.loopStart    = readDWord (fileData, offset + 4);
+				sample.loopLength   = readDWord (fileData, offset + 8);
 				sample.volume       = fileData.charCodeAt (offset + 12) / 64.0;
 				sample.fineTune     = (fileData.charCodeAt (offset + 13) < 128) ? fileData.charCodeAt (offset + 13) : -((fileData.charCodeAt (offset + 13) ^ 0xFF) + 1);
 				sample.loopType     = (sample.loopLength > 0) ? (fileData.charCodeAt (offset + 14) & 0x03) : SampleLoop.LOOP_NONE;
@@ -159,23 +167,20 @@ function XmLoader (fileData) {
 				sample.panning      = fileData.charCodeAt (offset + 15) / 255.0;
 				sample.basePeriod   = fileData.charCodeAt (offset + 16);			
 				sample.dataType    |= (fileData.charCodeAt (offset + 17) == 0xAD) ? SampleFormat.TYPE_ADPCM : SampleFormat.TYPE_DELTA;
-				sample.name         = iName;
-				
-				sample.volEnvelope = volumeEnvelope;
-				sample.panEnvelope = panEnvelope;
+				sample.name         = fileData.substring (offset + 18, offset + 40);
 							
 				// Correct sample base period.
 				if (sample.basePeriod > 127) sample.basePeriod = -(256 - sample.basePeriod);
 				sample.basePeriod = -sample.basePeriod + 24;
-							
-				mod.samples.push (sample);
+				
+				instrument.samples.push (sample);
 				offset += 40;
 			}			
 			
 			// Load sample data.
-			for (var s = 0; s < iNSamples; s ++) {
-				var sample = mod.samples[mod.samples.length - iNSamples + s];
-
+			for (var s = 0; s < instrument.numSamples; s ++) {
+				var sample = instrument.samples[s];
+				
 				if (sample.sampleLength > 0) {
 					var sampleData = fileData.substring (offset, offset + sample.sampleLength);
 					var is16Bit    = (sample.dataType & SampleFormat.FORMAT_16BIT) != 0;
@@ -184,22 +189,22 @@ function XmLoader (fileData) {
 						sample.loadDeltaSample (sampleData, is16Bit);
 					} else {
 						sample.loadAdpcmSample (sampleData, is16Bit);
+					}					
+					
+					offset += sample.sampleLength;
+					
+					// Correct sample length...
+					if ((sample.dataType & SampleFormat.FORMAT_16BIT) != 0) {
+						sample.sampleLength /= 2;
+						sample.loopStart    /= 2;
+						sample.loopLength   /= 2;
 					}
 				}
-				
-				offset += sample.sampleLength;
 			}
-		}
-	}
-	
-	// For 16-bit samples the length and loop parameters are stored in bytes, 
-	// so we need to correct this and divide by 2 :).
-	for (var i = 0; i < mod.samples.length; i ++) {
-		if ((mod.samples[i].dataType & SampleFormat.FORMAT_16BIT) != 0) {
-			mod.samples[i].sampleLength /= 2;
-			mod.samples[i].loopStart    /= 2;
-			mod.samples[i].loopLength   /= 2;
-		}
+		}		
+		
+		// Add instrument to module.
+		mod.instruments.push (instrument);
 	}
 	
 	return mod;

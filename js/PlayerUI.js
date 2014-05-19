@@ -70,7 +70,9 @@ function init () {
 		return;
 	}
 	
-	
+	player = new ScripTracker ();
+	player.setRowCallbackhandler (playerUpdate);
+				
 	$("#modFileChooser").change (function (e) {
 		var file = e.target.files[0];
 
@@ -87,9 +89,7 @@ function init () {
 				} else if (fileType == "xm") {
 					mod = XmLoader (fileLoadedEvent.target.result);
 				}
-				
-				player = new ScripTracker ();
-				player.setRowCallbackhandler (playerUpdate);
+								
 				player.load (mod);
 				
 				// Set channel headers
