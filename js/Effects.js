@@ -1,3 +1,14 @@
+/**
+ * Effects.js
+ *
+ * Holds all effects and handlers that process a given effect. The structure is as follows:
+ * representations: an array of textual effect representations within the tracker per ModType.
+ * handler: a function that implements the given effect using its params and changes player registers. 
+ *
+ * Author:  		Maarten Janssen
+ * Date:    		2013-06-21
+ * Last updated:	2014-05-12
+ */
 var Effects = {
     NONE: {
 		representations: [ ".", ".", ".", "." ],

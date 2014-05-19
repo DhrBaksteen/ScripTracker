@@ -1,59 +1,25 @@
+/**
+ * Instrument.js
+ *
+ * Instrument holds all instrument data such as samples and envelopes.
+ *
+ * Author:  		Maarten Janssen
+ * Date:    		2013-05-16
+ * Last updated:	2014-05-19
+ */
 function Instrument () {
-	this.name       = "";
-	this.type       = 0;
-	this.numSamples = 0;
+	this.name       = "";							// Name of the instrument (not used, player uses sample names).
+	this.type       = 0;							// Instrument type (?).
+	this.numSamples = 0;							// Number of samples in this instrument.
 	
-	this.sampleKeyMap    = [];
-	this.samples         = [];
-	this.volumeEnvelope  = new Envelope ();
-	this.panningEnvelope = new Envelope ();
+	this.sampleKeyMap    = [];						// Note --> sample index mapping.
+	this.samples         = [];						// List of samples used in this Instrument.
 	
+	this.volumeEnvelope  = new Envelope ();			// Default empty volume envelope.
+	this.panningEnvelope = new Envelope ();			// Default empty panning envelope.
+	
+	// Assign sample[0] to each note.
 	for (var i = 0; i < 96; i ++) {
 		this.sampleKeyMap.push (0);
-	}
-	
-	/**
-	 * Get the sample that is registered in the keymap at the given note index.
-	 */
-	this.getSample = function (note) {
-		this.sampleKeyMap[note];
-	}
-	
-	
-	this.getPanningEnvelope = function () {
-		return this.panningEnvelope;
-	}
-	
-	
-	this.getVolumeEnvelope = function () {
-		return this.volumeEnvelope;
-	}
-	
-	
-	/**
-	 * Assign a given sample to a given note index.
-	 */
-	this.assignSampleKey = function (note, sample) {
-		this.sampleKeyMap[note] = sample;
-	}
-	
-	
-	/**
-	 * Set the panning envelope used by samples of this instrument.
-	 */
-	this.setPanningEnvelope = function (envelope) {
-		this.panningEnvelope = envelope;
-	}
-	
-	
-	/**
-	 * Set the volume envelope used by samples of this instrument.
-	 */
-	this.setVolumeEnvelope = function (envelope) {
-		this.volumeEnvelope = envelope;
-	}
-	
-	this.dumpMap = function () {
-		return sampleKeyMap;
 	}
 }

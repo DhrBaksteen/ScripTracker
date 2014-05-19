@@ -1,9 +1,15 @@
 /**
-  * @expose
-  */
+ * XmLoader.js
+ *
+ * Loader for XM modules. Returns a generic ScripTracker Module object for playback.
+ *
+ * Author:  		Maarten Janssen
+ * Date:    		2014-05-12
+ * Last updated:	2014-05-19
+ */
 function XmLoader (fileData) {
 	mod      = new Module ();
-	mod.type = ModTypes.xm;
+	mod.type = ModTypes.XM;
 	
 	var headerSize      = readDWord (fileData, 60);
 	var offset          = 0;
@@ -149,8 +155,8 @@ function XmLoader (fileData) {
 				}
 			}			
 			
-			instrument.setVolumeEnvelope  (volumeEnvelope);
-			instrument.setPanningEnvelope (panEnvelope);			
+			instrument.volumeEnvelope  = volumeEnvelope;
+			instrument.panningEnvelope = panEnvelope;
 			offset += instrumentSize;
 		
 			// Load sample headers.
@@ -167,7 +173,7 @@ function XmLoader (fileData) {
 				sample.panning      = fileData.charCodeAt (offset + 15) / 255.0;
 				sample.basePeriod   = fileData.charCodeAt (offset + 16);			
 				sample.dataType    |= (fileData.charCodeAt (offset + 17) == 0xAD) ? SampleFormat.TYPE_ADPCM : SampleFormat.TYPE_DELTA;
-				sample.name         = fileData.substring (offset + 18, offset + 40);
+				sample.name         = instrument.name;	//fileData.substring (offset + 18, offset + 40);
 							
 				// Correct sample base period.
 				if (sample.basePeriod > 127) sample.basePeriod = -(256 - sample.basePeriod);

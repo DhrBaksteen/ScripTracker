@@ -4,20 +4,9 @@
  * Module defines a generic ScripTracker module regardless of the module type. The various loaders should take care of
  * filling a module with correct data so that it is usable by ScripTracker.
  *
- * Author:  Maarten Janssen
- * Version: 1.0.0
- * Date:    14-02-2013
- */
-var ModTypes = {
-	mod: 0,
-	s3m: 1,
-	it:  2,
-	xm:  3
-};
-
- 
- /**
- * @constructor
+ * Author:  		Maarten Janssen
+ * Date:    		2013-02-14
+ * Last updated:	2014-05-19
  */
  function Module () {
 	this.name = "";                     // Name of this song

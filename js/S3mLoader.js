@@ -1,9 +1,15 @@
 /**
-  * @expose
-  */
+ * S3mLoader.js
+ *
+ * Loader for S3M modules. Returns a generic ScripTracker Module object for playback.
+ *
+ * Author:  		Maarten Janssen
+ * Date:    		2013-04-14
+ * Last updated:	2014-05-19
+ */
 function S3mLoader (fileData) {
 	mod = new Module ();
-	mod.type     = ModTypes.s3m;
+	mod.type     = ModTypes.S3M;
 	mod.channels = 32;
 
 	mod.name         = fileData.substring (0, 28);
@@ -60,6 +66,7 @@ function S3mLoader (fileData) {
 			sample.loadStereoSample (fileData.substring (dataOffset, dataOffset + dataLength), is16Bit, mod.signedSample);
 		}
 		
+		instrument.name = sample.name;
 		instrument.samples.push (sample);
 		mod.instruments.push (instrument);
 	}

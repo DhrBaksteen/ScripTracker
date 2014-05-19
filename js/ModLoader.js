@@ -1,14 +1,15 @@
 /**
- * Load MOD file data as a Module so it can be played by ScripTracker.
+ * ModLoader.js
  *
- * fileData - String contents of the MOD file.
+ * Loader for MOD modules. Returns a generic ScripTracker Module object for playback.
+ *
+ * Author:  		Maarten Janssen
+ * Date:    		2014-05-12
+ * Last updated:	2014-05-19
  */
- /**
-  * @expose
-  */
 function ModLoader (fileData) {
 	var mod = new Module ();
-	mod.type = ModTypes.mod;
+	mod.type = ModTypes.MOD;
 
 	// Note period lookup table.
 	var notePeriods = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 906,
@@ -62,6 +63,7 @@ function ModLoader (fileData) {
 		if (sample.fineTune > 7) sample.fineTune -= 16;
 		sample.fineTune *= 16;
 		
+		instrument.name = sample.name;
 		instrument.samples.push (sample);
 		mod.instruments.push (instrument);
 	}

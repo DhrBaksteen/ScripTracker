@@ -4,12 +4,9 @@
  * Pattern defines a generic ScripTracker pattern regardless of the module type. The various loaders should take care of
  * filling a pattern with correct data so that it is usable by ScripTracker.
  *
- * Author:  Maarten Janssen
- * Version: 1.0.0
- * Date:    14-02-2013
- */
- /**
- * @constructor
+ * Author:  		Maarten Janssen
+ * Date:    		2013-02-14
+ * Last updated:	2014-05-19
  */
 function Pattern (rows, columns) {
 	this.patternIndex = 0;              // Index of this pattern within the module.
@@ -23,7 +20,7 @@ function Pattern (rows, columns) {
 	this.effect      = [];				// Array of effect indexes for each row and each channel
 	this.effectParam = [];				// Array of effect parameters for each row and each channel
 	
-	// Initialize emty pattern.
+	// Initialize empty pattern.
 	for (var i = 0; i < rows; i ++) {
 			this.note[i]        = [];
 			this.instrument[i]  = [];
@@ -33,7 +30,7 @@ function Pattern (rows, columns) {
 		for (var j = 0; j < columns; j ++) {
 			this.note[i][j]        = 0;
 			this.instrument[i][j]  = 0;
-			this.volume[i][j]      = 0;
+			this.volume[i][j]      = -1;
 			this.effect[i][j]      = Effects.NONE;
 			this.effectParam[i][j] = 0;
 		}

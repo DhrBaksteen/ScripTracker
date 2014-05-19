@@ -4,41 +4,11 @@
  * Sample defines a generic ScripTracker sample regardless of the module type. The various loaders should take care of
  * filling a sample with correct data so that it is usable by ScripTracker.
  *
- * Author:  Maarten Janssen
- * Version: 1.0.0
- * Date:    14-02-2013
+ * Author:  		Maarten Janssen
+ * Date:    		2013-02-14
+ * Last updated:	2014-05-14
  */
- /**
- * @constructor
- */
- var SampleLoop = {
-	LOOP_NONE:     0,
-	LOOP_FORWARD:  1,
-	LOOP_PINGPONG: 2
- }
- 
- 
- var SampleFormat = {
-	FORMAT_8BIT:  0,
-	FORMAT_16BIT: 2,
- 
-	TYPE_UNCOMPRESSED: 0,
-	TPYE_DELTA:        2,
-	TPYE_ADPCM:        4
- }
- 
- 
 function Sample () {
-	this.LOOP_NONE     = 0;             // Sample looping is disabled
-	this.LOOP_FORWARD  = 1;             // When sample reaches its end loop from loopStart to loopStart + loopLength
-	this.LOOP_PINGPONG = 2;             // When sample reaches its end loop from loopStart to loopStart + loopLength back and forth
-	
-	this.TYPE_8BIT  = 0;
-	this.TYPE_16BIT = 1;
-	this.TYPE_UNCOMPRESSED = 0;
-	this.TYPE_DELTA = 2;
-	this.TYPE_ADPCM = 4;
-
 	this.sampleIndex = 0;               // Index of this sample used by the module
 	this.name        = "";				// Name of this sample
 
