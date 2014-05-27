@@ -5,7 +5,7 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-02-14
- * Last updated:	2014-05-19
+ * Last updated:	2014-05-27
  */
 function ScripTracker () {
 	var _this  = this;                  // Self reference for private functions.
@@ -64,6 +64,8 @@ function ScripTracker () {
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 		volumeSlide:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Volume slide per channel
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		panSlide:	   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Pan slide per channel
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		sampleVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current volume of each channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		samplePos:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Current sample data position.
@@ -72,6 +74,10 @@ function ScripTracker () {
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		sampleRemain:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Sample data remaining on each channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		sampleReverse: [false, false, false, false, false, false, false, false,		// Reverse sample playback.
+						false, false, false, false, false, false, false, false,
+						false, false, false, false, false, false, false, false,
+						false, false, false, false, false, false, false, false],
 		noteDelay:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note delay per channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		loopMark:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Row to jump to when looping.
@@ -88,10 +94,11 @@ function ScripTracker () {
 						null, null, null, null, null, null, null, null],
 		envelopePos:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Volume and panning envelope position per channel.
 						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		noteDecay:     [false, false, false, false, false, false, false, false,		// Is the note on this channel decaying.
+		noteReleased:  [false, false, false, false, false, false, false, false,		// Is the note on this channel released.
 						false, false, false, false, false, false, false, false,
 						false, false, false, false, false, false, false, false,
 						false, false, false, false, false, false, false, false],
+		globalVolSlide: 0,
 
 		/**
 		 * Reset all registers to default. The unMute parameter dictates whether channel mute is also to be reset.
@@ -112,6 +119,8 @@ function ScripTracker () {
 			this.breakPattern = -1;
 			this.orderJump    = -1;
 			this.rowJump      = -1;
+			
+			globalVolSlide    = 0;
 
 			for (var i = 0; i < 32; i ++) {
 				if (unMute) {
@@ -130,17 +139,19 @@ function ScripTracker () {
 				this.tremoloAmp[i]    = 0;
 				this.tremolo[i]       = 1;
 				this.volumeSlide[i]   = 0;
+				this.panSlide[i]      = 0;
 				this.sampleVolume[i]  = 0;
 				this.samplePos[i]     = 0;
 				this.sampleStep[i]    = 0;
 				this.sampleRemain[i]  = 0;
+				this.sampleReverse[i] = false;
 				this.noteDelay[i]     = 0;
 				this.loopMark[i]      = 0;
 				this.loopCount[i]     = 0;
 				this.volEnvelope[i]   = null;
 				this.panEnvelope[i]   = null;
 				this.envelopePos[i]   = 0;
-				this.noteDecay[i]     = false;
+				this.noteReleased[i]  = false;
 			}
 		}
 	};
@@ -152,10 +163,18 @@ function ScripTracker () {
 
 	var isPlaying   = false;						// Is the player currently playing?
 	var patternLoop = false;						// Do not jump to next order, but repeat current.
-	var audioCtx    = new webkitAudioContext ();	// AudioContext for output.
+	var audioCtx    = null;							// AudioContext for output.
 	var tNext       = 0								// Time of next player 'thread' update.
 
-
+	if (typeof AudioContext !== "undefined") {
+		audioCtx = new AudioContext ();				// Create AudioContext.
+	} else if (typeof webkitAudioContext !== "undefined") {
+		audioCtx = new webkitAudioContext ();		// Create Webkit specific AudioContext.
+	} else {
+		alert ("No audio context!");
+	}
+	
+	
 	/**
 	 * Load the given ScripTracker Module object and start playback.
 	 *
@@ -184,7 +203,7 @@ function ScripTracker () {
 		if (!isPlaying) return;
 
 		// Try updating the player if time interval has passed.
-		try {
+		//try {
 			var t = (new Date ()).getTime ();
 			if (t >= tNext) {
 				// Process new row.
@@ -200,6 +219,7 @@ function ScripTracker () {
 				tNext = ((new Date ()).getTime () + registers.rowDelay) - dPlayer;
 			}
 		// Notify user on error.
+		/*
 		} catch (e) {
 			console.log (e);
 			console.log (registers);
@@ -209,6 +229,7 @@ function ScripTracker () {
 				errorHandler (e.message);
 			}
 		}
+		*/
 		
 		// Schedule next update of the player 'thread'.
 		setTimeout (function () {
@@ -239,15 +260,17 @@ function ScripTracker () {
 					var sampleKey  = instrument.sampleKeyMap[registers.channelNote[c]];
 					
 					// Set sample and envelope registers.
-					registers.channelSample[c] = instrument.samples[sampleKey];					// Set sample based on current note.
-					registers.sampleVolume[c]  = registers.channelSample[c].volume;				// Set base sample volume.
-					registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;		// Repeat length of this sample.
-					registers.samplePos[c]     = 0;                                          	// Restart sample.
-					
+					if (instrument.samples[sampleKey]) {
+						registers.channelSample[c] = instrument.samples[sampleKey];				// Set sample based on current note.
+						registers.sampleVolume[c]  = registers.channelSample[c].volume;			// Set base sample volume.
+						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength	// Repeat length of this sample.
+					}
+					registers.samplePos[c]     = 0;                                          	// Restart sample.		
+					registers.sampleReverse[c] = false;											// Make sure sample plays forward.
 					registers.volEnvelope[c]   = instrument.volumeEnvelope;						// Get volume envelope.
 					registers.panEnvelope[c]   = instrument.panningEnvelope;					// Get panning envelope.
 					registers.envelopePos[c]   = 0;												// Reset volume envelope.
-					registers.noteDecay[c]     = false;											// Reset decay.
+					registers.noteReleased[c]  = false;											// Reset decay.
 
 					// Set channel panning (for MOD use predefined panning).
 					if (module.type != "mod") {
@@ -265,7 +288,7 @@ function ScripTracker () {
 				if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
 					// On stop note start the release part of the envelope.
 					if (pattern.note[row][c] == 97) {
-						registers.noteDecay[c] = true;											// Start release portion of envelopes.
+						registers.noteReleased[c] = true;										// Start release portion of envelopes.
 						
 					// Update sample frequencies if we have a sample loaded.
 					} else if (registers.channelSample[c] != null) {
@@ -274,7 +297,8 @@ function ScripTracker () {
 
 						registers.samplePos[c]     = 0;											// Restart sample.
 						registers.noteDelay[c]     = 0;											// Reset note delay.
-						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength;	// Repeat length of this sample.
+						registers.sampleReverse[c] = false;										// Make sure sample plays forward.
+						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength	// Repeat length of this sample.
 						registers.sampleStep[c]    = freq / (registers.samplesPerTick * 3);		// Samples per division.
 					}
 				}
@@ -335,8 +359,8 @@ function ScripTracker () {
 			        if (registers.channelSample[c] != null && registers.noteDelay[c] == 0 && !registers.channelMute[c]) {
 						// Get envelope values and calculate volume and pan for samples during this tick.
 						if (s == 0) {
-							var vEnvelopeValue = registers.volEnvelope[c].getValue (registers.envelopePos[c], registers.noteDecay[c], 1.0, (c > 4 && c < 8));
-							var pEnvelopeValue = registers.panEnvelope[c].getValue (registers.envelopePos[c], registers.noteDecay[c], 0.5);
+							var vEnvelopeValue = registers.volEnvelope[c].getValue (registers.envelopePos[c], registers.noteReleased[c], 1.0, (c > 4 && c < 8));
+							var pEnvelopeValue = registers.panEnvelope[c].getValue (registers.envelopePos[c], registers.noteReleased[c], 0.5);
 							registers.envelopePos[c] ++;
 
 							vol = registers.sampleVolume[c] * vEnvelopeValue * registers.tremolo[c];
@@ -356,7 +380,7 @@ function ScripTracker () {
                         	samplesR[sIndex] -= sample * 0.5 * vol;
 						}
 
-						registers.samplePos[c]    += registers.sampleStep[c];
+						registers.samplePos[c]    += registers.sampleReverse[c] ? -registers.sampleStep[c] : registers.sampleStep[c];
 						registers.sampleRemain[c] -= registers.sampleStep[c];
 
 						// Loop or stop the sample when we reach its end.
@@ -365,8 +389,8 @@ function ScripTracker () {
 						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
 						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
 							} else if (registers.channelSample[c].loopType == SampleLoop.LOOP_PINGPONG) {
-						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
-						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
+								registers.sampleReverse[c] = !registers.sampleReverse[c];
+						    	registers.sampleRemain[c]  = registers.channelSample[c].loopLength + Math.abs (registers.sampleRemain[c]);																
 							} else {
 							    registers.samplePos[c]  = registers.channelSample[c].sampleLength - 1;
 						    	registers.sampleStep[c] = 0;
@@ -392,17 +416,25 @@ function ScripTracker () {
 			samplesR[i] = Math.max (-1, Math.min (samplesR[i], 1)) * registers.masterVolume;
 		}
 
+		// Create left and right audio buffers.
 		var sourceL = audioCtx.createBufferSource (0);
 		audioBuffer.getChannelData (0).set (samplesL);
 		sourceL.buffer = audioBuffer;
   		sourceL.connect (audioCtx.destination);
-  		sourceL.noteOn (0);
-
+		
         var sourceR = audioCtx.createBufferSource (1);
 		audioBuffer.getChannelData (1).set (samplesR);
         sourceR.buffer = audioBuffer;
   		sourceR.connect (audioCtx.destination);
-  		sourceR.noteOn (0);
+
+		// Start playback on left and right channel.
+		if (typeof AudioContext !== "undefined") {
+			sourceL.start (0);
+			sourceR.start (0);
+		} else if (typeof webkitAudioContext !== "undefined") {
+			sourceL.noteOn (0);
+			sourceR.noteOn (0);
+		}
 
 		// If an order jump is encountered jump to row 1 of the order at the given index.
 		if (registers.orderJump != -1 && !patternLoop) {
@@ -664,10 +696,14 @@ function ScripTracker () {
 	 * channel - Channel index to get the volume.
 	 */
 	this.getChannelVolume = function (channel) {
-		if (registers.channelSample[channel]) {
-			return registers.sampleVolume[channel] * registers.volEnvelope[channel].getValue (registers.envelopePos[channel], registers.noteDecay[channel], 1.0);
+		if (registers.sampleStep[channel] > 0) {
+			if (registers.channelSample[channel]) {
+				return registers.masterVolume * registers.sampleVolume[channel] * registers.volEnvelope[channel].getValue (registers.envelopePos[channel], registers.noteReleased[channel], 1.0);
+			} else {
+				return registers.masterVolume * registers.sampleVolume[channel];
+			}
 		} else {
-			return registers.sampleVolume[channel];
+			return 0;
 		}
 	};
 
@@ -679,7 +715,11 @@ function ScripTracker () {
 	 * channel - Channel index to get instrument name.
 	 */
 	this.getChannelInstrument = function (channel) {
-		return (registers.channelSample[channel] != null) ? registers.channelSample[channel].name : "";
+		if (registers.sampleStep[channel] > 0) {
+			return (registers.channelSample[channel] != null) ? registers.channelSample[channel].name : "";
+		} else {
+			return "";
+		}
 	};
 
 

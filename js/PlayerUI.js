@@ -59,9 +59,8 @@ $(document).ready (function () {
 
 function init () {
 	// Does the browser support the Web Audio API??
-	try {
-		context = new webkitAudioContext ();
-	} catch (e) {
+	if (typeof AudioContext === "undefined" &&
+		typeof webkitAudioContext === "undefined") {
 		showDialog ({
 			contentID: "dlgNoWebAudio",
 			closeButtonID: "btnNoAudioOk"

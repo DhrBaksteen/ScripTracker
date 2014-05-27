@@ -79,7 +79,7 @@ function Sample () {
 	 */
 	this.loadDeltaSample = function (sampleData, is16Bit) {
 		var val = 0.0;
-
+		
 		for (var i = 0; i < this.sampleLength; i ++) {
 			if (!is16Bit) {			
 				var val8 = sampleData.charCodeAt (i);

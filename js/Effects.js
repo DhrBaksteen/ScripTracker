@@ -7,7 +7,7 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-06-21
- * Last updated:	2014-05-12
+ * Last updated:	2014-05-27
  */
 var Effects = {
     NONE: {
@@ -511,13 +511,17 @@ var Effects = {
 	// Retrigger note if the current tick is equal to param Y and perform a volume slide using
 	// param X.
 	RETRIG_VOL_SLIDE: {
-		representations: [ "?", "Q", "?", "?" ],
+		representations: [ "?", "Q", "?", "R" ],
 		handler: function (registers, channel, param, pattern) {
 			if (registers.currentTick % (param & 0x0F) == 0) {
 				registers.sampleRemain[channel]  = registers.channelSample[channel].sampleLength;
 				registers.samplePos[channel]     = 0;
-				
-				switch ((param & 0xF0) >> 4) {
+			}
+			
+			if (registers.currentTick == 0 && (param & 0xF0) != 0) {
+				registers.volumeSlide[channel] = (param & 0xF0) >> 4;
+			} else if (registers.currentTick > 0) {						
+				switch (registers.volumeSlide[channel]) {
 					case 1:
 						registers.sampleVolume[channel] -= (1 / 64);
 						break;
@@ -565,7 +569,7 @@ var Effects = {
 				}
 				
 				registers.sampleVolume[channel] = Math.max (0.0, Math.min (registers.sampleVolume[channel], 1.0));
-			}
+			}			
 		}
 	},
 	
@@ -579,27 +583,45 @@ var Effects = {
 		}
 	},
 	
+	// Slide global volume up or down.
 	GLOBAL_VOLUME_SLIDE: {
 		representations: [ "?", "?", "?", "H" ],
 		handler: function (registers, channel, param, pattern) {
+			// On tick 0 copy parameter if set.
+			if (registers.currentTick == 0 && param != 0) {
+				registers.globalVolSlide = (((param & 0xF0) != 0) ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
+			}
+			
+			// Slide volume on every tick > 0.
+			if (registers.currentTick > 0 && registers.globalVolSlide != 0) {
+				registers.masterVolume = Math.max (0.0, Math.min (registers.masterVolume + registers.globalVolSlide, 1.0));
+			}		
 		}
 	},
 	
+	// Set envelope position on current instrument.
 	ENVELOPE_POSITION: {
 		representations: [ "?", "?", "?", "L" ],
 		handler: function (registers, channel, param, pattern) {
+			if (registers.currentTick == 0) {
+				registers.envelopePos[channel] = param;
+			}
 		}
 	},
 	
+	// Slide panning of the channel left or right.
 	PAN_SLIDE: {
 		representations: [ "?", "?", "?", "P" ],
 		handler: function (registers, channel, param, pattern) {
-		}
-	},
-	
-	MULTI_RETRIGGER:{
-		representations: [ "?", "?", "?", "R" ],
-		handler: function (registers, channel, param, pattern) {
+			// On tick 0 copy parameter if set.
+			if (registers.currentTick == 0 && param != 0) {
+				registers.panSlide[channel] = ((param & 0xF0) > 0 ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
+			}
+			
+			// Change channel panning.
+			if (registers.currentTick > 0) {
+				registers.channelPan[channel] = Math.max (0, Math.min (registers.channelPan[channel] + registers.panSlide[channel], 1));
+			}
 		}
 	},
 	
@@ -649,15 +671,39 @@ var Effects = {
 		}
 	},
 	
+	// Extra fine porta up 4 times finer than fine porta up.
 	EXTRA_FINE_PORTA_UP: {
 		representations: [ "?", "?", "?", "X" ],
 		handler: function (registers, channel, param, pattern) {
+			if (registers.currentTick == 0) {
+				// If param value present change porta step.
+				if (param & 0x0F != 0) {
+					registers.portaStep[channel] = (param & 0x0F);
+				}
+				
+				// Slide pitch up.
+				registers.channelPeriod[channel] -= registers.portaStep[channel];
+				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
+				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+			}
 		}
 	},
 	
+	// Extra fine porta down 4 times finer than fine porta down.
 	EXTRA_FINE_PORTA_DOWN: {
 		representations: [ "?", "?", "?", "X" ],
 		handler: function (registers, channel, param, pattern) {
+			if (registers.currentTick == 0) {
+				// If param value present change porta step.
+				if (param & 0x0F != 0) {
+					registers.portaStep[channel] = (param & 0x0F);
+				}
+
+				// Slide pitch down.
+				registers.channelPeriod[channel] += registers.portaStep[channel];
+				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
+				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+			}
 		}
 	}
 }

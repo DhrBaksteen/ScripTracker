@@ -5,7 +5,7 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2014-05-12
- * Last updated:	2014-05-19
+ * Last updated:	2014-05-27
  */
 function XmLoader (fileData) {
 	mod      = new Module ();
@@ -291,7 +291,7 @@ function parseEffect (effect, param) {
 		case 25:
 			return Effects.PAN_SLIDE;
 		case 27:
-			return Effects.MULTI_RETRIGGER;
+			return Effects.RETRIG_VOL_SLIDE;
 		case 29:
 			return Effects.TREMOR;
 		case 33:
