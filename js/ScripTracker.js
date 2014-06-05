@@ -369,7 +369,7 @@ function ScripTracker () {
 
 							vol = registers.sampleVolume[c] * vEnvelopeValue * registers.tremolo[c];
 							pan = Math.max (0.0, Math.min (registers.channelPan[c] + ((pEnvelopeValue - 0.5) * ((2 - Math.abs (registers.channelPan[c] - 2)) / 0.5)), 1.0));
-							registers.outputVolume[c] = Math.max (registers.outputVolume[c], vol * registers.masterVolume);
+							registers.outputVolume[c] = Math.max (registers.outputVolume[c], vol * (registers.sampleStep[c] > 0 ? registers.masterVolume : 0));
 						}
 
 			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])];						
@@ -701,7 +701,7 @@ function ScripTracker () {
 	 * channel - Channel index to get the volume.
 	 */
 	this.getChannelVolume = function (channel) {
-    	return registers.sampleStep[channel] > 0 ? registers.outputVolume[channel] : 0;
+    	return registers.outputVolume[channel];
 	};
 
 
