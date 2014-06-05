@@ -248,8 +248,8 @@ function playerUpdate (player) {
 		$("#patternView tr:nth-child(" + (row - (player.getPatternRows () - 18)) + ") td").addClass ("rowPlayHead");
 	} else {
 		$("#patternView tr:nth-child(9) td").addClass ("rowPlayHead");
-	}
-
+	}	
+	
 	// Set instruments and VU meters.
 	for (var i = 0; i < 8; i ++) {
 		$("#tdVuInst" + i).text (player.isMuted (i + scroll) ? "** MUTE **" : player.getChannelInstrument (i + scroll).substring (0, 13));
@@ -269,7 +269,7 @@ function playerUpdate (player) {
 				}
 			}
 		});
-	}	
+	}
 }
 
 

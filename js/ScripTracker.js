@@ -701,7 +701,7 @@ function ScripTracker () {
 	 * channel - Channel index to get the volume.
 	 */
 	this.getChannelVolume = function (channel) {
-		return registers.outputVolume[channel];
+    	return registers.sampleStep[channel] > 0 ? registers.outputVolume[channel] : 0;
 	};
 
 
