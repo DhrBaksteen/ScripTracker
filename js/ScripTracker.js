@@ -203,7 +203,7 @@ function ScripTracker () {
 		if (!isPlaying) return;
 
 		// Try updating the player if time interval has passed.
-		//try {
+		try {
 			var t = (new Date ()).getTime ();
 			if (t >= tNext) {
 				// Process new row.
@@ -219,7 +219,6 @@ function ScripTracker () {
 				tNext = ((new Date ()).getTime () + registers.rowDelay) - dPlayer;
 			}
 		// Notify user on error.
-		/*
 		} catch (e) {
 			console.log (e);
 			console.log (registers);
@@ -229,7 +228,6 @@ function ScripTracker () {
 				errorHandler (e.message);
 			}
 		}
-		*/
 		
 		// Schedule next update of the player 'thread'.
 		setTimeout (function () {
@@ -273,7 +271,7 @@ function ScripTracker () {
 					registers.noteReleased[c]  = false;											// Reset decay.
 
 					// Set channel panning (for MOD use predefined panning).
-					if (module.type != "mod") {
+					if (module.type != "mod" && registers.channelSample[c]) {
 						registers.channelPan[c] = registers.channelSample[c].panning;
 					}
 				}
