@@ -98,6 +98,8 @@ function ScripTracker () {
 						false, false, false, false, false, false, false, false,
 						false, false, false, false, false, false, false, false,
 						false, false, false, false, false, false, false, false],
+    	outputVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current output volume per channel.
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		globalVolSlide: 0,
 
 		/**
@@ -152,6 +154,7 @@ function ScripTracker () {
 				this.panEnvelope[i]   = null;
 				this.envelopePos[i]   = 0;
 				this.noteReleased[i]  = false;
+				this.outputVolume[i]  = 0;
 			}
 		}
 	};
@@ -300,6 +303,9 @@ function ScripTracker () {
 						registers.sampleStep[c]    = freq / (registers.samplesPerTick * 3);		// Samples per division.
 					}
 				}
+				
+				// Reset max output volume in this row.
+				registers.outputVolume[c] = 0;
 			}
 		}
 		
@@ -363,6 +369,7 @@ function ScripTracker () {
 
 							vol = registers.sampleVolume[c] * vEnvelopeValue * registers.tremolo[c];
 							pan = Math.max (0.0, Math.min (registers.channelPan[c] + ((pEnvelopeValue - 0.5) * ((2 - Math.abs (registers.channelPan[c] - 2)) / 0.5)), 1.0));
+							registers.outputVolume[c] = Math.max (registers.outputVolume[c], vol * registers.masterVolume);
 						}
 
 			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])];						
@@ -694,15 +701,7 @@ function ScripTracker () {
 	 * channel - Channel index to get the volume.
 	 */
 	this.getChannelVolume = function (channel) {
-		if (registers.sampleStep[channel] > 0) {
-			if (registers.channelSample[channel]) {
-				return registers.masterVolume * registers.sampleVolume[channel] * registers.volEnvelope[channel].getValue (registers.envelopePos[channel], registers.noteReleased[channel], 1.0);
-			} else {
-				return registers.masterVolume * registers.sampleVolume[channel];
-			}
-		} else {
-			return 0;
-		}
+		return registers.outputVolume[channel];
 	};
 
 
