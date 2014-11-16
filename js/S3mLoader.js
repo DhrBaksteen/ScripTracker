@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * S3mLoader.js
  *
@@ -5,7 +7,7 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-04-14
- * Last updated:	2014-05-19
+ * Last updated:	2014-11-10
  */
 function S3mLoader (fileData) {
 	mod = new Module ();
@@ -16,13 +18,13 @@ function S3mLoader (fileData) {
 	mod.songLength   = fileData.charCodeAt (32) + fileData.charCodeAt (33) * 256;
 	mod.sampleCount  = fileData.charCodeAt (34) + fileData.charCodeAt (35) * 256;
 	mod.patternCount = fileData.charCodeAt (36) + fileData.charCodeAt (37) * 256;
-	mod.signedSample = (fileData.charCodeAt (42) == 1) ? true : false;
+	mod.signedSample = (fileData.charCodeAt (42) === 1) ? true : false;
 
-	this.volumeSlideFlag = (fileData.charCodeAt (38) & 0x40) != 0 || fileData.charCodeAt (40) == 0x00;
-	mod.defaultVolume = fileData.charCodeAt (48) / 64.0;
-	mod.defaultTempo  = fileData.charCodeAt (49) == 0 ?   6 : fileData.charCodeAt (49);
-	mod.defaultBPM    = fileData.charCodeAt (50) < 33 ? 125 : fileData.charCodeAt (50);
-	mod.defaultVolume = fileData.charCodeAt (51) / 64.0;
+	mod.volumeSlideFlag = (fileData.charCodeAt (38) & 0x40) !== 0 || fileData.charCodeAt (40) === 0x00;
+	mod.defaultVolume   = fileData.charCodeAt (48) / 64.0;
+	mod.defaultTempo    = fileData.charCodeAt (49) === 0 ?   6 : fileData.charCodeAt (49);
+	mod.defaultBPM      = fileData.charCodeAt (50) < 33 ? 125 : fileData.charCodeAt (50);
+	mod.defaultVolume   = fileData.charCodeAt (51) / 64.0;
 
 	// Load order table.
 	for (var i = 0; i < mod.songLength; i ++) {
@@ -45,20 +47,20 @@ function S3mLoader (fileData) {
 		sample.sampleLength = sampleData.charCodeAt (16) + sampleData.charCodeAt (17) * 256;
 		sample.loopStart    = sampleData.charCodeAt (20) + sampleData.charCodeAt (21) * 256;
 		sample.loopLength   = (sampleData.charCodeAt (24) + sampleData.charCodeAt (25) * 256) - sample.loopStart;
-		sample.volume       = sampleData.charCodeAt (28) / 64.0;
-		sample.loopType     = ((sampleData.charCodeAt (31) & 0x01) != 0) ? SampleLoop.LOOP_FORWARD : SampleLoop.LOOP_NONE;
+		sample.volume       = sampleData.charCodeAt (28) / 64;
+		sample.loopType     = ((sampleData.charCodeAt (31) & 0x01) !== 0) ? SampleLoop.LOOP_FORWARD : SampleLoop.LOOP_NONE;
 
 		// Calculate the base note from C4 frequency
 		sample.basePeriod = (sampleData.charCodeAt (32) + sampleData.charCodeAt (33) * 256);
 		sample.basePeriod = (sample.basePeriod) / 8363;
-		sample.basePeriod = (Math.log (sample.basePeriod) / Math.log (2)) * 768 + 3072;
+		sample.basePeriod = (Math.log (sample.basePeriod) / Math.log (2)) * 768 + 3168;			// Was 3072...
 		sample.basePeriod = -(Math.floor (sample.basePeriod / 64) - 72);
 		
 		var dataOffset = sampleData.charCodeAt (14) * 16 + sampleData.charCodeAt (15) * 4096;
-		var is16Bit    = (sampleData.charCodeAt (31) & 0x04) != 0;
+		var is16Bit    = (sampleData.charCodeAt (31) & 0x04) !== 0;
 		var dataLength = sample.sampleLength * ((is16Bit) ? 2 : 1);
 
-		if ((sampleData.charCodeAt (31) & 0x02) == 0) {
+		if ((sampleData.charCodeAt (31) & 0x02) === 0) {
 			// Load mono sample data.
 			sample.loadSample (fileData.substring (dataOffset, dataOffset + dataLength), is16Bit, mod.signedSample);
 		} else {
@@ -82,18 +84,18 @@ function S3mLoader (fileData) {
 		var pos = 2;
 		var i = 0;
 		
-		while (i != 64 && patternData.length - pos > 0) {
+		while (i !== 64 && patternData.length - pos > 0) {
 			var data = patternData.charCodeAt (pos);
 
-			if (data != 0x00) {
+			if (data !== 0x00) {
 				var channel = data & 0x1F;					
 
-				if ((data & 0x20) != 0) {
+				if ((data & 0x20) !== 0) {
 					pos ++;
-					if (patternData.charCodeAt (pos) == 0xFE) {
+					if (patternData.charCodeAt (pos) === 0xFE) {
 						// Stop note.
 						pattern.note[i][channel] = 97;
-					} else if (patternData.charCodeAt (pos) == 0xFF) {
+					} else if (patternData.charCodeAt (pos) === 0xFF) {
 						// Empty note.
 						pattern.note[i][channel] = 0;
 					} else {
@@ -105,13 +107,13 @@ function S3mLoader (fileData) {
 					pattern.instrument[i][channel] = patternData.charCodeAt (++pos);
 				}
 
-				if ((data & 0x40) != 0) {
-					pattern.volume[i][channel] = patternData.charCodeAt (++pos) / 64.0;
+				if ((data & 0x40) !== 0) {
+					pattern.volume[i][channel] = patternData.charCodeAt (++pos);
 				} else {
 					pattern.volume[i][channel] = -1;
 				}
 
-				if ((data & 0x80) != 0) {
+				if ((data & 0x80) !== 0) {
 					var effect = patternData.charCodeAt (++pos);
 					var param  = patternData.charCodeAt (++pos);
 					

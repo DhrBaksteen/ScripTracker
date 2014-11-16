@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * XmLoader.js
  *
@@ -5,7 +7,7 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2014-05-12
- * Last updated:	2014-05-27
+ * Last updated:	2014-11-08
  */
 function XmLoader (fileData) {
 	mod      = new Module ();
@@ -49,29 +51,35 @@ function XmLoader (fileData) {
 					if ((note & 0x80) == 0) {
 						pattern.note[r][c]       = note;
 						pattern.instrument[r][c] = fileData.charCodeAt (pDataOffset ++);
-						var volume = fileData.charCodeAt (pDataOffset ++);
+						var volume = Math.max (-1, fileData.charCodeAt (pDataOffset ++) - 16);
+						/*
 						if (volume >= 16 && volume <= 80) {
 							pattern.volume[r][c] = Math.min ((volume - 16) / 64, 1.0);
 						} else {
 							pattern.volume[r][c] = 0;
 						}
+						*/
+						pattern.volume[r][c]      = volume;
 						pattern.effect[r][c]      = fileData.charCodeAt (pDataOffset ++);
 						pattern.effectParam[r][c] = fileData.charCodeAt (pDataOffset ++);
 					
 					// Packed note info.
 					} else {
-						if ((note & 0x01) != 0) pattern.note[r][c]       = fileData.charCodeAt (pDataOffset ++);								
-						if ((note & 0x02) != 0) pattern.instrument[r][c] = fileData.charCodeAt (pDataOffset ++);	
+						if ((note & 0x01) != 0) pattern.note[r][c]       = fileData.charCodeAt (pDataOffset ++);
+						if ((note & 0x02) != 0) pattern.instrument[r][c] = fileData.charCodeAt (pDataOffset ++);
 
 						// Get channel volume.
 						if ((note & 0x04) != 0) {
-							var volume = fileData.charCodeAt (pDataOffset ++);
+							var volume = Math.max (-1, fileData.charCodeAt (pDataOffset ++) - 16);
+							/*
 							if (volume >= 16 && volume <= 80) {
 								pattern.volume[r][c] = Math.min ((volume - 16) / 64, 1.0);
 							} else {
 								// TODO: effects from volume data
 								pattern.volume[r][c] = -1.0;
 							}
+							*/
+							pattern.volume[r][c] = volume;
 						} else {
 							pattern.volume[r][c] = -1.0;
 						}
@@ -109,7 +117,7 @@ function XmLoader (fileData) {
 		if (instrument.numSamples == 0) {
 			offset += instrumentSize;
 			
-		} else {						
+		} else {
 			// Read instrument keymap form instrument --> sample linking.
 			// For now load sample indexes, after loading sample data replace indexes by sample references.
 			for (var k = 0; k < 96; k ++) {
@@ -117,12 +125,12 @@ function XmLoader (fileData) {
 			}
 		
 			// Create volume envelope.
-			var volumeEnvelope     = new Envelope ();			
+			var volumeEnvelope     = new Envelope ();
 			volumeEnvelope.type    = fileData.charCodeAt (offset + 233);
 			var volEnvelopePoints  = fileData.charCodeAt (offset + 225);
 			var volEnvelopeSustain = fileData.charCodeAt (offset + 227); 
 			var volEnvelopeLpBegin = fileData.charCodeAt (offset + 228);
-			var volEnvelopeLpEnd   = fileData.charCodeAt (offset + 229);			
+			var volEnvelopeLpEnd   = fileData.charCodeAt (offset + 229);
 			
 			// Create panning envelope.
 			var panEnvelope        = new Envelope ();

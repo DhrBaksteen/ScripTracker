@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * ModLoader.js
  *
@@ -5,9 +7,9 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2014-05-12
- * Last updated:	2014-05-19
+ * Last updated:	2014-11-08
  */
-function ModLoader (fileData) {
+var ModLoader = function (fileData) {
 	var mod = new Module ();
 	mod.type = ModTypes.MOD;
 

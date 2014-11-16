@@ -1,3 +1,5 @@
+"use strict";
+
 var mod = null;
 var player = null;
 var playing = false;
@@ -111,7 +113,7 @@ function init () {
 
 	$(document).keydown (function (e) {
 		if (e.keyCode == 68) {
-			player.dump ();					
+			player.debug ();
 		}
 	});
 
@@ -135,7 +137,7 @@ function init () {
 	$("#btnEject").click (function () {
 		$("#btnPlayPause").removeClass ("btnPause");
 		$("#btnPlayPause").addClass    ("btnPlay");
-		if (player) {
+		if (player && player.isPlaying ()) {
 			player.stop ();
 		}
 

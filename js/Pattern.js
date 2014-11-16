@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Pattern.js
  *
@@ -36,8 +38,9 @@ function Pattern (rows, columns) {
 		}
 	}
 
-	var noteNames = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"];
-	var hexValues = "0123456789ABCDEF";
+	var noteNames  = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"];
+	var hexValues  = "0123456789ABCDEF";
+	var volEffects = "DCBAUHPLRG";
 
 
 	/**
@@ -76,9 +79,13 @@ function Pattern (rows, columns) {
 
 		// Write volume data
 		text += " ";
-		if (this.volume[row][channel] > -1 && this.instrument[row][channel] != 0) {
-			var vol = this.volume[row][channel] * 64;
-            text += hexValues.charAt (Math.floor (vol / 16));
+		if (this.volume[row][channel] > -1) {
+			var vol = this.volume[row][channel];
+			if (vol >= 80) {
+				text += volEffects.charAt (Math.floor ((vol - 80) / 16));
+			} else {
+				text += hexValues.charAt (Math.floor (vol / 16));
+			}
 			text += hexValues.charAt (vol % 16);
 		} else {
 			text += "..";

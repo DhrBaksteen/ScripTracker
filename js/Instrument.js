@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Instrument.js
  *
@@ -7,7 +9,7 @@
  * Date:    		2013-05-16
  * Last updated:	2014-05-19
  */
-function Instrument () {
+var Instrument = function () {
 	this.name       = "";							// Name of the instrument (not used, player uses sample names).
 	this.type       = 0;							// Instrument type (?).
 	this.numSamples = 0;							// Number of samples in this instrument.

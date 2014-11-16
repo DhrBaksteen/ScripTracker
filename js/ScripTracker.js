@@ -1,528 +1,366 @@
+"use strict";
+
 /**
  * ScripTracker.js
  *
  * ScripTracker is a JavaScript mod player that can play MOD, S3M and XM music in a modern browser using the Audio API.
  *
- * Author:  		Maarten Janssen
- * Date:    		2013-02-14
- * Last updated:	2014-05-27
+ * Author:			Maarten Janssen
+ * Version:			1.9.4
+ * Date:			2013-02-14
+ * Last updated:	2014-11-15
  */
 function ScripTracker () {
-	var _this  = this;                  // Self reference for private functions.
+	var _this = this;					// Self reference for private functions.
 
-	var registers = {
-		orderIndex:     0,				// Index in the order table of the module.
-		currentRow:     0,				// Current row in pattern.
-		currentTick:    0,				// Current tick in row.
+	var module      = null;				// Module file that is playing.
+	var pattern     = null;				// The current pattern being played.
+	var orderIndex  = 0;				// Index in the order table of the module.
+	var currentRow  = 0;				// Current row in pattern.
+	var currentTick = 0;				// Current tick in row.
 
-		sampleRate:     22050,			// Playback sample rate.
-		bpm:            0,				// Current BPM.
-		ticksPerRow:    0,				// Current number of ticks in one row (tempo).
-		samplesPerTick: 0,				// Number of samples per tick.
-		rowDelay:       0,				// Time in ms taken by each row given the current BPM and tempo.
-		tickDuration:   0,				// Time in ms taken by eack tick.
-		masterVolume:   0.9,			// The master volume multiplier.
+	var audioContext    = null;			// AudioContext for output.
+	var audioSource     = null;			// Source object for audio.
+	var audioScriptNode = null;			// Audio processing object.
+	var sampleRate      = 0;			// Playback sample rate defined by the audioContext.
+	var bufferSize      = 4096			// Size of the audio buffer.
+	var bpm             = 0;			// Current BPM.
+	var ticksPerRow     = 0;			// Current number of ticks in one row (tempo).
+	var samplesPerTick  = 0;			// Number of samples to process for the current tick.
+	var sampleCount     = 0;			// Number of samples processed for the current tick.
+	var isPlaying       = false;		// Is the player currently playing?
 
-		breakPattern: -1,				// Pattern break row to restart next order.
-		orderJump:    -1,				// Order jump index of next order.
-		rowJump:      -1,				// Row to jump to when looping
-		patternDelay:  0,				// Pattern delay will keep the player at the current row until 0.
+	var masterVolume     = 1;			// The master volume multiplier.
+	var masterVolSlide   = 0;			// Master volume delta per tick.
+	var breakPattern     = -1;			// Pattern break row to restart next order.
+	var orderJump        = -1;			// Order jump index of next order.
+	var rowJump          = -1;			// Row to jump to when looping
+	var patternDelay     = 0;			// Pattern delay will keep the player at the current row until 0.
+	var patternLoop      = false;		// Do not jump to next order, but repeat current.
+	var channelRegisters = [];			// Channel registers containing the player data for each channel.
+	for (var i = 0; i < 32; i ++) {
+		channelRegisters[i] = new ChannelRegisters;
+	}
 
-		channelMute:   [false, false, false, false, false, false, false, false,		// Channel muted flags.
-						false, false, false, false, false, false, false, false,
-						false, false, false, false, false, false, false, false,
-						false, false, false, false, false, false, false, false],
-		channelPeriod: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current period of each channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		channelNote:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current note of each channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		channelSample: [null, null, null, null, null, null, null, null,				// Reference to current sample of channels.
-						null, null, null, null, null, null, null, null,
-						null, null, null, null, null, null, null, null,
-						null, null, null, null, null, null, null, null],
-		channelPan:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,						// Panning of each channel.
-						0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-						0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-						0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-		portaNote:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note period to porta to for each channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		portaStep:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note porta step per tick.
-					    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		vibratoPos:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Vibrato position per channel.
-					    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		vibratoStep:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Vibrato step per tick per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		vibratoAmp:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Vibrato amplitude per channel
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		tremoloPos:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Tremolo position per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		tremoloStep:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Tremolo step per tick per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		tremoloAmp:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Tremolo amplitude per channel
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		tremolo:       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,				// Tremolo volume delta per channel
-						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		volumeSlide:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Volume slide per channel
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		panSlide:	   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Pan slide per channel
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current volume of each channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		samplePos:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Current sample data position.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleStep:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Sample data step for each channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleRemain:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Sample data remaining on each channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		sampleReverse: [false, false, false, false, false, false, false, false,		// Reverse sample playback.
-						false, false, false, false, false, false, false, false,
-						false, false, false, false, false, false, false, false,
-						false, false, false, false, false, false, false, false],
-		noteDelay:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Note delay per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		loopMark:      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Row to jump to when looping.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		loopCount:     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Loop counter per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		volEnvelope:   [null, null, null, null, null, null, null, null,				// Reference to current sample of channels.
-						null, null, null, null, null, null, null, null,
-						null, null, null, null, null, null, null, null,
-						null, null, null, null, null, null, null, null],
-		panEnvelope:   [null, null, null, null, null, null, null, null,				// Reference to current sample of channels.
-						null, null, null, null, null, null, null, null,
-						null, null, null, null, null, null, null, null,
-						null, null, null, null, null, null, null, null],
-		envelopePos:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,				// Volume and panning envelope position per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		noteReleased:  [false, false, false, false, false, false, false, false,		// Is the note on this channel released.
-						false, false, false, false, false, false, false, false,
-						false, false, false, false, false, false, false, false,
-						false, false, false, false, false, false, false, false],
-    	outputVolume:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    			// Current output volume per channel.
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		globalVolSlide: 0,
-
-		/**
-		 * Reset all registers to default. The unMute parameter dictates whether channel mute is also to be reset.
-		 */
-		reset: function (unMute) {
-			this.orderIndex  = 0;
-			this.currentRow  = 0;
-			this.currentTick = 0;
-
-			this.sampleRate     = 22050;
-			this.bpm            = 0;
-			this.ticksPerRow    = 0;
-			this.samplesPerTick = 0;
-			this.rowDelay       = 0;
-			this.tickDuration   = 0;
-			this.masterVolume   = 0.9;
-
-			this.breakPattern = -1;
-			this.orderJump    = -1;
-			this.rowJump      = -1;
-			
-			globalVolSlide    = 0;
-
-			for (var i = 0; i < 32; i ++) {
-				if (unMute) {
-					this.channelMute[i]  = false;
-				}
-				this.channelPeriod[i] = 0;
-				this.channelSample[i] = null;
-				this.channelPan[i]    = 0.5;
-				this.portaNote[i]     = 0;
-				this.portaStep[i]     = 0;
-				this.vibratoPos[i]    = 0;
-				this.vibratoStep[i]   = 0;
-				this.vibratoAmp[i]    = 0;
-				this.tremoloPos[i]    = 0;
-				this.tremoloStep[i]   = 0;
-				this.tremoloAmp[i]    = 0;
-				this.tremolo[i]       = 1;
-				this.volumeSlide[i]   = 0;
-				this.panSlide[i]      = 0;
-				this.sampleVolume[i]  = 0;
-				this.samplePos[i]     = 0;
-				this.sampleStep[i]    = 0;
-				this.sampleRemain[i]  = 0;
-				this.sampleReverse[i] = false;
-				this.noteDelay[i]     = 0;
-				this.loopMark[i]      = 0;
-				this.loopCount[i]     = 0;
-				this.volEnvelope[i]   = null;
-				this.panEnvelope[i]   = null;
-				this.envelopePos[i]   = 0;
-				this.noteReleased[i]  = false;
-				this.outputVolume[i]  = 0;
-			}
-		}
-	};
-
-	var module  = null;                 			// Module file that is playing.
-	var pattern = null;                 			// The current pattern being played.
-
-	var rowCallbackHandler = null;      			// Callback function called when a new row is being processed.
-
-	var isPlaying   = false;						// Is the player currently playing?
-	var patternLoop = false;						// Do not jump to next order, but repeat current.
-	var audioCtx    = null;							// AudioContext for output.
-	var tNext       = 0								// Time of next player 'thread' update.
+	var rowCallbackHandler = null;			// Callback function called when a new row is being processed.
 
 	if (typeof AudioContext !== "undefined") {
-		audioCtx = new AudioContext ();				// Create AudioContext.
+		audioContext    = new AudioContext ();			// Create AudioContext.
 	} else if (typeof webkitAudioContext !== "undefined") {
-		audioCtx = new webkitAudioContext ();		// Create Webkit specific AudioContext.
+		audioContext = new webkitAudioContext ();		// Create Webkit specific AudioContext.
 	} else {
 		alert ("No audio context!");
+		return;
 	}
 	
+	sampleRate      = audioContext.sampleRate;
+	audioSource     = audioContext.createBufferSource ();
+	audioScriptNode = audioContext.createScriptProcessor (bufferSize, 1, 2);
+	audioScriptNode.onaudioprocess = fillBuffer;
+	audioSource.start (0);
 	
+
 	/**
 	 * Load the given ScripTracker Module object and start playback.
 	 *
 	 * mod - A ScripTacker Module object generated by any of the loaders (e.g. ModLoader, S3mLoader, XmLoader).
 	 */
 	this.load = function (mod) {
-		registers.reset (true);
 		module = mod;
 
+		// TODO: This should be part of the MOD loader I guess.
 		if (module.type == "mod") {
 			for (var i = 0; i < module.channels; i ++) {
-				registers.channelPan[i] = (i % 2 == 0) ? 0.7 : 0.3;
+				channelRegisters[i].panning.pan = (i % 2 == 0) ? 0.7 : 0.3;
 			}
 		}
 
-		Effects.SET_TEMPO.handler (registers, 0, module.defaultBPM);
-		Effects.SET_SPEED.handler (registers, 0, module.defaultTempo);
-		this.rewind ();
+		this.resetPlayback ();
 	}
 
 
-	/**
-	 * Main player 'thread' that calls itself every time a new row should be processed as long as the player is playing.
-	 */
-	function playerThread () {
+	function fillBuffer (audioProcessingEvent) {
 		if (!isPlaying) return;
 
-		// Try updating the player if time interval has passed.
-		try {
-			var t = (new Date ()).getTime ();
-			if (t >= tNext) {
-				// Process new row.
-				playRow ();
+		var outputBuffer = audioProcessingEvent.outputBuffer;
+		var samplesL     = outputBuffer.getChannelData (0);
+		var samplesR     = outputBuffer.getChannelData (1);
 
-				// If a callback handler is registered call it now.
-				if (rowCallbackHandler != null) {
+		for (var sIndex = 0; sIndex < outputBuffer.length; sIndex ++) {
+			var sampleL = 0;
+			var sampleR = 0;
+
+			for (var c = 0; c < module.channels; c ++) {
+				var registers = channelRegisters[c];
+				
+				if (registers.sample.sample) {
+					var sample = registers.sample.sample.sample[Math.floor (registers.sample.position)];
+
+					var vEnvelopeValue = registers.volume.envelope.getValue  (registers.envelopePos, registers.noteReleased, 1.0);
+					var pEnvelopeValue = registers.panning.envelope.getValue (registers.envelopePos, registers.noteReleased, 0.5);
+					var vol = vEnvelopeValue * registers.tremolo.volume * registers.volume.channelVolume; // registers.volume.sampleVolume * 
+					var pan = Math.max (0.0, Math.min (registers.panning.pan + ((pEnvelopeValue - 0.5) * ((2 - Math.abs (registers.panning.pan - 2)) / 0.5)), 1.0));
+					registers.envelopePos += 1 / samplesPerTick;
+
+					// Normal panning.
+					if (!registers.isMuted && !registers.tremor.muted) {
+						if (registers.panning.pan <= 1.0) {
+							sampleL += sample * (1.0 - pan) * vol;
+							sampleR += sample *        pan  * vol;
+
+						// Surround sound.
+						} else {
+							sampleL += sample * 0.5 * vol;
+							sampleR -= sample * 0.5 * vol;
+						}
+					}
+
+					registers.sample.position += registers.sample.reversed ? -registers.sample.step : registers.sample.step;
+					registers.sample.remain   -= Math.abs (registers.sample.step);
+
+					// Loop or stop the sample when we reach its end.
+					if (registers.sample.remain <= 0) {
+						if (registers.sample.sample.loopType === SampleLoop.LOOP_FORWARD) {
+							registers.sample.position = registers.sample.sample.loopStart  - registers.sample.remain;
+							registers.sample.remain   = registers.sample.sample.loopLength + registers.sample.remain;
+						} else if (registers.sample.sample.loopType === SampleLoop.LOOP_PINGPONG) {
+							registers.sample.position = Math.max (registers.sample.sample.loopStart, registers.sample.position);
+							registers.sample.position = Math.min (registers.sample.sample.loopStart + registers.sample.sample.loopLength - 1, registers.sample.position);
+							registers.sample.remain   = registers.sample.sample.loopLength;
+							registers.sample.reversed = !registers.sample.reversed;
+						} else {
+							registers.sample.position = registers.sample.sample.sampleLength - 1;
+							registers.sample.step     = 0;
+						}
+					}
+				}
+			}
+
+			samplesL[sIndex] = sampleL * masterVolume;
+			samplesR[sIndex] = sampleR * masterVolume;
+
+			sampleCount ++;
+			if (sampleCount === samplesPerTick) {
+				sampleCount = 0;
+				currentTick ++;
+				if (currentTick === ticksPerRow) {
+					processRowEnd ();
+				}
+				processTick ();
+				if (currentTick === 0 && rowCallbackHandler != null) {
 					rowCallbackHandler (_this);
 				}
-
-				// Calculate time of next update.
-				var dPlayer = (new Date ()).getTime () - t;
-				tNext = ((new Date ()).getTime () + registers.rowDelay) - dPlayer;
-			}
-		// Notify user on error.
-		} catch (e) {
-			console.log (e);
-			console.log (registers);
-			_this.stop  ();
-
-			if (errorHandler != null) {
-				errorHandler (e.message);
 			}
 		}
-		
-		// Schedule next update of the player 'thread'.
-		setTimeout (function () {
-			playerThread ();			
-		}, 1);
-	};
+	}
 
 
-	/**
-	 * Convert the current row to sample data and send it to output.
-	 */
-	function playRow () {	
-		var row = registers.currentRow;
-		var samplesL = [];
-		var samplesR = [];
-
-		if (registers.patternDelay == 0) {
-			for (var c = 0; c < module.channels; c ++) {			
+	function processTick () {
+		for (var c = 0; c < module.channels; c ++) {
+			var registers   = channelRegisters[c];
+			var note        = pattern.note[currentRow][c];
+			var instrIndex  = pattern.instrument[currentRow][c];
+			var volume      = pattern.volume[currentRow][c];
+			var effect      = pattern.effect[currentRow][c];
+			var effectParam = pattern.effectParam[currentRow][c];
 			
-				// Update current note if there is one.
-				if (pattern.note[row][c] != 0) {
-					registers.channelNote[c] = pattern.note[row][c] - 1;
-				}
-			
-				// Change instrument.
-				if (pattern.instrument[row][c] != 0) {
-					var instrument = module.instruments[pattern.instrument[row][c] - 1];
-					var sampleKey  = instrument.sampleKeyMap[registers.channelNote[c]];
+			if (currentTick === 0) {
+				
+				// Change instrument and retrigger current note.
+				if (instrIndex !== 0) {
+					var instrument = module.instruments[instrIndex - 1];
+					if (instrument) {
+						var sampleKey = instrument.sampleKeyMap[note];
+						
+						// Set sample and envelope registers.
+						if (instrument.samples[sampleKey]) {
+							registers.sample.sample       = instrument.samples[sampleKey];				// Set sample based on current note.
+							registers.sample.remain       = registers.sample.sample.sampleLength		// Remaining length of this sample.
+							registers.volume.sampleVolume = registers.sample.sample.volume;				// Set base sample volume.
+						}
+						registers.sample.position  = 0;													// Restart sample.
+						registers.sample.reversed  = false;												// Reset sample reverse playback.
+						registers.volume.envelope  = instrument.volumeEnvelope;							// Get volume envelope.
+						registers.panning.envelope = instrument.panningEnvelope;						// Get panning envelope.
+						registers.envelopePos      = 0;													// Reset volume envelope.
+						registers.noteReleased     = false;												// Reset decay.
+
+						// Set channel panning (for MOD use predefined panning).
+						if (module.type !== "mod" && registers.sample.sample) {
+							registers.panning.pan = registers.sample.sample.panning;
+						}
 					
-					// Set sample and envelope registers.
-					if (instrument.samples[sampleKey]) {
-						registers.channelSample[c] = instrument.samples[sampleKey];				// Set sample based on current note.
-						registers.sampleVolume[c]  = registers.channelSample[c].volume;			// Set base sample volume.
-						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength	// Repeat length of this sample.
+						// Remove sample if it has no data.
+						if (registers.sample.sample && registers.sample.sample.sampleLength < 1) {
+							registers.sample.sample = null;
+						}
+					} else {
+						registers.sample.sample = null;													// Undefined instrument, so no sample!
 					}
-					registers.samplePos[c]     = 0;                                          	// Restart sample.		
-					registers.sampleReverse[c] = false;											// Make sure sample plays forward.
-					registers.volEnvelope[c]   = instrument.volumeEnvelope;						// Get volume envelope.
-					registers.panEnvelope[c]   = instrument.panningEnvelope;					// Get panning envelope.
-					registers.envelopePos[c]   = 0;												// Reset volume envelope.
-					registers.noteReleased[c]  = false;											// Reset decay.
-
-					// Set channel panning (for MOD use predefined panning).
-					if (module.type != "mod" && registers.channelSample[c]) {
-						registers.channelPan[c] = registers.channelSample[c].panning;
-					}
-				}
-
-				// If we do have a sample and the volume on the row > 0 then use this as sample volume.
-				registers.tremolo[c] = 1.0;														// Reset tremolo on each row.
-				if (registers.channelSample[c] != null && pattern.volume[row][c] > -1) {
-					registers.sampleVolume[c] = pattern.volume[row][c];
 				}
 
 				// This row contains a note and we are not doing a slide to note.
-				if (pattern.note[row][c] != 0 && pattern.effect[row][c] != Effects.TONE_PORTA && pattern.effect[row][c] != Effects.TONE_PORTA_VOL_SLIDE) {
+				if (note !== 0 && effect !== Effects.TONE_PORTA && effect !== Effects.TONE_PORTA_VOL_SLIDE) {
 					// On stop note start the release part of the envelope.
-					if (pattern.note[row][c] == 97) {
-						registers.noteReleased[c] = true;										// Start release portion of envelopes.
-						
-					// Update sample frequencies if we have a sample loaded.
-					} else if (registers.channelSample[c] != null) {
-						registers.channelPeriod[c] = 7680 - (pattern.note[row][c] - 25 - registers.channelSample[c].basePeriod) * 64 - registers.channelSample[c].fineTune / 2;
-						var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[c]) / 768);
-
-						registers.samplePos[c]     = 0;											// Restart sample.
-						registers.noteDelay[c]     = 0;											// Reset note delay.
-						registers.sampleReverse[c] = false;										// Make sure sample plays forward.
-						registers.sampleRemain[c]  = registers.channelSample[c].sampleLength	// Repeat length of this sample.
-						registers.sampleStep[c]    = freq / (registers.samplesPerTick * 3);		// Samples per division.
-					}
-				}
-				
-				// Reset max output volume in this row.
-				registers.outputVolume[c] = 0;
-			}
-		}
-		
-		
-		// Pre-process all BPM and Tick count altering effects to prevent uneven sample buffer lengths.
-		for (var c = 0; c < module.channels; c ++) {
-			if (pattern.effect[registers.currentRow][c] == Effects.SET_TEMPO_BPM ||
-				pattern.effect[registers.currentRow][c] == Effects.SET_SPEED ||
-				pattern.effect[registers.currentRow][c] == Effects.SET_TEMPO) {
-				var param = pattern.effectParam[registers.currentRow][c];
-				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);
-				
-				// Stop and reset playback when ticks is set to 0.
-				if (registers.ticksPerRow == 0) {
-					isPlaying = false;
-					registers.reset ();
-
-					// Try to re-initialize to the first order.
-					if (module.defaultTempo > 0) {
-						Effects.SET_TEMPO.handler (registers, 0, module.defaultBPM);
-						Effects.SET_SPEED.handler (registers, 0, module.defaultTempo);
-						pattern = module.patterns[module.orders[registers.orderIndex]];						
-					}
+					if (note === 97) {
+						registers.note         = note;
+						registers.noteReleased = true;													// Start release portion of envelopes.
+					} else {
+						registers.note = note - 1;
 					
-					// Send final update to the UI handler.
-					if (rowCallbackHandler != null) {
-						rowCallbackHandler (_this);
-					}
+						// Update sample frequency according to new note if we have a sample loaded.
+						if (registers.sample.sample !== null) {
+							registers.period = 7680 - (note - 26 - registers.sample.sample.basePeriod) * 64 - registers.sample.sample.fineTune / 2;
+							var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
 
-					return;
+							registers.sample.position     = 0;											// Restart sample.
+							registers.volume.sampleVolume = registers.sample.sample.volume;				// Reset sample volume.
+							registers.sample.remain       = registers.sample.sample.sampleLength		// Repeat length of this sample.
+							registers.sample.step         = freq / (samplesPerTick * 3);				// Samples per division.
+							registers.sample.reversed     = false;										// Reset sample reverse playback.
+							registers.noteDelay           = 0;											// Reset note delay.
+						}
+					}
+				}
+				
+				registers.tremolo.volume = 1.0;															// Reset tremolo on each row.
+				registers.tremor.muted = false;															// Reset tremor on each new row.
+				if (volume >= 0 && volume <= 64) {														// Change channel volume.
+					registers.volume.channelVolume = volume / 64;
+				} else if (note < 97 && instrIndex !== 0) {
+					registers.volume.channelVolume = registers.volume.sampleVolume;
 				}
 			}
+
+			if (volume > 64) Effects.VOLUME_EFFECT.handler (registers, volume, currentTick, c, _this);
+			effect.handler (registers, effectParam, currentTick, c, _this);
 		}
-		
+	}
 
-		// Create sample buffer for each tick in the current row.
-		for (var t = 0; t < registers.ticksPerRow; t ++) {
-			for (var c = 0; c < module.channels; c ++) {
-				// Process effects.
-				var param = pattern.effectParam[registers.currentRow][c];
-				pattern.effect[registers.currentRow][c].handler (registers, c, param, pattern);				
 
-				// Generate samples for current tick and channel.
-				var sIndex = registers.samplesPerTick * t;
-				var vol    = 1.0;
-				var pan    = 0.5;
-
-				// Generate all samples for the current tick.
-				for (var s = 0; s < registers.samplesPerTick; s ++) {
-					if (c == 0) {
-						samplesL[sIndex] = 0.0;
-						samplesR[sIndex] = 0.0;
-					}
-
-			        if (registers.channelSample[c] != null && registers.noteDelay[c] == 0 && !registers.channelMute[c]) {
-						// Get envelope values and calculate volume and pan for samples during this tick.
-						if (s == 0) {
-							var vEnvelopeValue = registers.volEnvelope[c].getValue (registers.envelopePos[c], registers.noteReleased[c], 1.0, (c > 4 && c < 8));
-							var pEnvelopeValue = registers.panEnvelope[c].getValue (registers.envelopePos[c], registers.noteReleased[c], 0.5);
-							registers.envelopePos[c] ++;
-
-							vol = registers.sampleVolume[c] * vEnvelopeValue * registers.tremolo[c];
-							pan = Math.max (0.0, Math.min (registers.channelPan[c] + ((pEnvelopeValue - 0.5) * ((2 - Math.abs (registers.channelPan[c] - 2)) / 0.5)), 1.0));
-							registers.outputVolume[c] = Math.max (registers.outputVolume[c], vol * (registers.sampleStep[c] > 0 ? registers.masterVolume : 0));
-						}
-
-			            var sample = registers.channelSample[c].sample[Math.floor (registers.samplePos[c])];						
-
-						// Normal panning.
-						if (registers.channelPan[c] <= 1.0) {							
-							samplesL[sIndex] += sample * (1.0 - pan) * vol;
-							samplesR[sIndex] += sample *        pan  * vol;
-							
-						// Surround sound.
-						} else {							
-							samplesL[sIndex] += sample * 0.5 * vol;
-                        	samplesR[sIndex] -= sample * 0.5 * vol;
-						}
-
-						registers.samplePos[c]    += registers.sampleReverse[c] ? -registers.sampleStep[c] : registers.sampleStep[c];
-						registers.sampleRemain[c] -= registers.sampleStep[c];
-
-						// Loop or stop the sample when we reach its end.
-						if (registers.sampleRemain[c] <= 0) {
-						    if (registers.channelSample[c].loopType == SampleLoop.LOOP_FORWARD) {
-						    	registers.samplePos[c]    = registers.channelSample[c].loopStart  - registers.sampleRemain[c];
-						    	registers.sampleRemain[c] = registers.channelSample[c].loopLength + registers.sampleRemain[c];
-							} else if (registers.channelSample[c].loopType == SampleLoop.LOOP_PINGPONG) {
-								registers.sampleReverse[c] = !registers.sampleReverse[c];
-						    	registers.sampleRemain[c]  = registers.channelSample[c].loopLength + Math.abs (registers.sampleRemain[c]);																
-							} else {
-							    registers.samplePos[c]  = registers.channelSample[c].sampleLength - 1;
-						    	registers.sampleStep[c] = 0;
-							}
-						}
-					}
-
-                    sIndex ++;
-				}
-
-				// If a note delay is set decrease it.
-				registers.noteDelay[c] = Math.max (0, registers.noteDelay[c] - 1);
-			}
-
-			registers.currentTick ++;
-		}
-
-		var audioBuffer = audioCtx.createBuffer (2, samplesL.length, registers.sampleRate);
-
-		// Clip sample values [-1, 1] and apply master volume.
-		for (var i = 0; i < samplesL.length; i ++) {
-			samplesL[i] = Math.max (-1, Math.min (samplesL[i], 1)) * registers.masterVolume;
-			samplesR[i] = Math.max (-1, Math.min (samplesR[i], 1)) * registers.masterVolume;
-		}
-
-		// Create left and right audio buffers.
-		var sourceL = audioCtx.createBufferSource (0);
-		audioBuffer.getChannelData (0).set (samplesL);
-		sourceL.buffer = audioBuffer;
-  		sourceL.connect (audioCtx.destination);
-		
-        var sourceR = audioCtx.createBufferSource (1);
-		audioBuffer.getChannelData (1).set (samplesR);
-        sourceR.buffer = audioBuffer;
-  		sourceR.connect (audioCtx.destination);
-
-		// Start playback on left and right channel.
-		if (typeof AudioContext !== "undefined") {
-			sourceL.start (0);
-			sourceR.start (0);
-		} else if (typeof webkitAudioContext !== "undefined") {
-			sourceL.noteOn (0);
-			sourceR.noteOn (0);
-		}
-
+	function processRowEnd () {
 		// If an order jump is encountered jump to row 1 of the order at the given index.
-		if (registers.orderJump != -1 && !patternLoop) {
-			registers.currentRow = -1;
-			registers.orderIndex = Math.min (module.songLength - 1, registers.orderJump);
-            pattern              = module.patterns[module.orders[registers.orderIndex]];
+		if (orderJump !== -1 && !patternLoop) {
+			currentRow = -1;
+			orderIndex = Math.min (module.songLength - 1, orderJump);
+			pattern    = module.patterns[module.orders[orderIndex]];
 		}
 
 		// Handle pattern break if there is one.
-		if (registers.breakPattern != -1) {
-			registers.currentRow = registers.breakPattern - 1;
+		if (breakPattern !== -1) {
+			currentRow = breakPattern - 1;
 
 			// Only handle pattern break when not looping a pattern.
-			if (!this.repeatOrder && registers.orderJump == -1) {
-				registers.orderIndex ++;
+			if (!patternLoop && orderJump === -1) {
+				orderIndex ++;
 
 				// Handle the skip order marker.
-				while (module.orders[registers.orderIndex] == 0xFE && registers.orderIndex < module.songLength) {
-					registers.orderIndex ++
+				while (module.orders[orderIndex] === 0xFE && orderIndex < module.songLength) {
+					orderIndex ++
 				}
 
 				// When we reach the end of the song jump back to the restart position.
-				if (registers.orderIndex == module.songLength || module.orders[registers.orderIndex] == 0xFF) {
-					registers.orderIndex = module.restartPosition;
+				if (orderIndex === module.songLength || module.orders[orderIndex] == 0xFF) {
+					orderIndex = module.restartPosition;
 				}
 
-				pattern = module.patterns[module.orders[registers.orderIndex]];
+				pattern = module.patterns[module.orders[orderIndex]];
 			}
 		}
 
 		// Jump to a particular row in the current pattern;
-		if (registers.rowJump > -1) {
-			registers.currentRow = registers.rowJump - 1;
-			registers.rowJump = -1;
+		if (rowJump !== -1) {
+			currentRow = rowJump - 1;
+			rowJump = -1;
 		}
 
 		// Remain at the current row if pattern delay is active.
-		if (registers.patternDelay < 2) {
-			registers.orderJump    = -1;
-			registers.breakPattern = -1;
-			registers.currentRow ++;
-			registers.currentTick  = 0;
-			registers.patternDelay = 0;
+		if (patternDelay < 2) {
+			orderJump    = -1;
+			breakPattern = -1;
+			currentTick  = 0;
+			patternDelay = 0;
+			currentRow ++;
 		} else {
-			registers.patternDelay --;
+			patternDelay --;
 		}
 
 		// When we reach the end of our current pattern jump to the next one.
-		if (registers.currentRow == pattern.rows) {
-			registers.currentRow = 0;
-			if (!patternLoop) registers.orderIndex ++;
+		if (currentRow === pattern.rows) {
+			currentRow = 0;
+			if (!patternLoop) orderIndex ++;
 
 			// Handle the skip order marker.
-			while (module.orders[registers.orderIndex] == 0xFE && registers.orderIndex < module.songLength) {
-				registers.orderIndex ++
+			while (module.orders[orderIndex] === 0xFE && orderIndex < module.songLength) {
+				orderIndex ++
 			}
 
 			// When we reach the end of the song jump back to the restart position.
-			if (registers.orderIndex >= module.songLength || module.orders[registers.orderIndex] == 0xFF) {
-				registers.orderIndex = module.restartPosition;
+			if (orderIndex >= module.songLength || module.orders[orderIndex] === 0xFF) {
+				orderIndex = module.restartPosition;
 			}
 
-            pattern = module.patterns[module.orders[registers.orderIndex]];
+			pattern = module.patterns[module.orders[orderIndex]];
 		}
-	};
+	}
+	
+	
+	this.resetPlayback = function () {
+		for (var c = 0; c < 32; c ++) {
+			channelRegisters[c].reset ();
+		}
+		
+		masterVolume   = 0.9;
+		masterVolSlide = 0;
+		breakPattern   = -1;
+		orderJump      = -1;
+		rowJump        = -1;
+		patternDelay   = 0;
+		
+		orderIndex  = 0;
+		currentRow  = 0;
+		currentTick = 0;
+		sampleCount = 0;
+		
+		pattern = module.patterns[module.orders[orderIndex]];
+		
+		Effects.SET_TEMPO.handler (channelRegisters[0], module.defaultBPM,   0, 0, this);
+		Effects.SET_SPEED.handler (channelRegisters[0], module.defaultTempo, 0, 0, this);
+		processTick ();
+		
+		if (rowCallbackHandler != null) {
+			rowCallbackHandler (this);
+		}
+	}
 
 
 	/**
 	 * Start playback if player is stopped and a module is loaded.
 	 */
 	this.play = function () {
-		if (!isPlaying && module != null) {	
+		if (!isPlaying && module != null) {
+			processTick  ();
+			
+			audioSource.connect (audioScriptNode);
+			audioScriptNode.connect (audioContext.destination);
 			isPlaying = true;
-			tPrev = (new Date ()).getTime ();
-			playerThread ();
 		}
 	};
+
+
+	this.debug = function () {
+		audioSource.stop ();
+		var regs = channelRegisters;
+		debugger;
+	}
 
 
 	/**
 	 * Stop playback after the current row has been processed.
 	 */
 	this.stop = function () {
+		audioScriptNode.disconnect (audioContext.destination);
+		audioSource.disconnect (audioScriptNode);
 		isPlaying = false;
 	};
 
@@ -531,18 +369,21 @@ function ScripTracker () {
 	 * Jump to the previous order or restart the current order if we are below row 8.
 	 */
 	this.prevOrder = function () {
-		if (registers.currentRow >= 8) {
-			// Restart current order if we are after row 8.
-			registers.currentRow = 0;
-		} else {
-			registers.currentRow = 0;
-
-			// Only jump to previous order if it's safe.
-			if (registers.orderIndex - 1 >= 0 && module.orders[registers.orderIndex] != 0xFE) {
-				registers.orderIndex --;
-				pattern = module.patterns[module.orders[registers.orderIndex]];
-			}
+		// Jump to previous order if we are above row 8 and it's safe to do.
+		if (currentRow < 8 && orderIndex - 1 >= 0 && module.orders[orderIndex] != 0xFE) {
+			orderIndex --;
+			pattern = module.patterns[module.orders[orderIndex]];
 		}
+		
+		// Setup registers.
+		currentRow  = 0;
+		currentTick = 0;
+		sampleCount = 0;
+		for (var c = 0; c < module.channels; c ++) {
+			channelRegisters[c].reset ();
+		}
+		
+		processTick ();
 	}
 
 
@@ -550,9 +391,19 @@ function ScripTracker () {
 	 * Jump to the top of the next order.
 	 */
 	this.nextOrder = function () {
-		if (pattern != null) {
-			registers.currentRow = pattern.rows - 1;
+		if (orderIndex < module.orders.length - 1) {
+			orderIndex ++;
+			pattern = module.patterns[module.orders[orderIndex]];
 		}
+		
+		currentRow  = 0;
+		currentTick = 0;
+		sampleCount = 0;
+		for (var c = 0; c < module.channels; c ++) {
+			channelRegisters[c].reset ();
+		}
+		
+		processTick ();
 	}
 
 
@@ -560,12 +411,13 @@ function ScripTracker () {
 	 * Restart the current module.
 	 */
 	this.rewind = function () {
-		registers.orderIndex = 0;
-		registers.currentRow = 0;
+		orderIndex  = 0;
+		currentRow  = 0;
+		currentTick = 0;
 
 		// Get first pattern if a module is loaded.
 		if (module != null) {
-			pattern = module.patterns[module.orders[registers.orderIndex]];
+			pattern = module.patterns[module.orders[orderIndex]];
 
 			if (rowCallbackHandler != null) {
 				rowCallbackHandler (_this);
@@ -580,7 +432,7 @@ function ScripTracker () {
 	 * channel - Index of the channel to check.
 	 */
 	this.isMuted = function (channel) {
-		return registers.channelMute[channel];
+		return channelRegisters[channel].isMuted;
 	}
 
 
@@ -607,7 +459,7 @@ function ScripTracker () {
 	 * mute    - Mate state of the given channel.
 	 */
 	this.setMute = function (channel, mute) {
-		registers.channelMute[channel] = mute;
+		channelRegisters[channel].isMuted = mute;
 	}
 
 
@@ -643,7 +495,7 @@ function ScripTracker () {
 	 * Get the currently active order number .
 	 */
 	this.getCurrentOrder = function () {
-		return registers.orderIndex + 1;
+		return orderIndex + 1;
 	};
 
 
@@ -651,7 +503,7 @@ function ScripTracker () {
 	 * Get the index of the currently active pattern.
 	 */
 	this.getCurrentPattern = function () {
-		return module.orders[registers.orderIndex];
+		return module.orders[orderIndex];
 	};
 
 
@@ -667,7 +519,7 @@ function ScripTracker () {
 	 * Get the current BPM of the song.
 	 */
 	this.getCurrentBPM = function () {
-		return registers.bpm;
+		return bpm;
 	};
 
 
@@ -675,7 +527,7 @@ function ScripTracker () {
 	 * Get the current number of ticks per row.
 	 */
 	this.getCurrentTicks = function () {
-		return registers.ticksPerRow;
+		return ticksPerRow;
 	};
 
 
@@ -683,7 +535,7 @@ function ScripTracker () {
 	 * Get the currently active row of the pattern.
 	 */
 	this.getCurrentRow = function () {
-		return registers.currentRow;
+		return currentRow;
 	};
 
 
@@ -701,7 +553,7 @@ function ScripTracker () {
 	 * channel - Channel index to get the volume.
 	 */
 	this.getChannelVolume = function (channel) {
-    	return registers.outputVolume[channel];
+    	return channelRegisters[channel].volume.sampleVolume * channelRegisters[channel].volume.channelVolume * masterVolume;
 	};
 
 
@@ -712,8 +564,9 @@ function ScripTracker () {
 	 * channel - Channel index to get instrument name.
 	 */
 	this.getChannelInstrument = function (channel) {
-		if (registers.sampleStep[channel] > 0) {
-			return (registers.channelSample[channel] != null) ? registers.channelSample[channel].name : "";
+		var registers = channelRegisters[channel];
+		if (registers.sample.sample && registers.sample.step > 0) {
+			return registers.sample.sample.name;
 		} else {
 			return "";
 		}
@@ -738,4 +591,166 @@ function ScripTracker () {
 		console.log (registers);
 		console.log (pattern);
 	}
+	
+	this.getSamplesPerTick = function () {
+		return samplesPerTick;
+	}
+	
+	this.setSamplesPerTick = function (value) {
+		samplesPerTick = value;
+	}
+	
+	this.getBpm = function () {
+		return bpm;
+	}
+	
+	this.setBpm = function (value) {
+		bpm = value;
+	}
+	
+	this.getTicksPerRow = function () {
+		return ticksPerRow;
+	}
+	
+	this.setTicksPerRow = function (ticks) {
+		ticksPerRow = ticks;
+	}
+	
+	this.getSampleRate = function () {
+		return sampleRate;
+	}
+	
+	this.getNote = function (channel) {
+		return pattern.note[currentRow][channel];
+	}
+	
+	this.getPatternVolume = function (channel) {
+		return pattern.volume[currentRow][channel];
+	}
+	
+	this.setBreakPattern = function (value) {
+		breakPattern = value;
+	}
+	
+	this.getMasterVolume = function () {
+		return masterVolume;
+	}
+	
+	this.setMasterVolume = function (value) {
+		masterVolume = value;
+	}
+	
+	this.getMasterVolSlide = function () {
+		return masterVolSlide;
+	}
+	
+	this.setMasterVolSlide = function (value) {
+		masterVolSlide = value;
+	}
+	
+	this.getCurrentRow = function () {
+		return currentRow;
+	}
+	
+	this.setRowJump = function (value) {
+		rowJump = value;
+	}
+	
+	this.setOrderJump = function (value) {
+		orderJump = value;
+	}
 }
+
+
+var ChannelRegisters = function () {
+	this.sample = {
+		sample:   null,				// Sample object used on this channel.
+		position: 0,				// Sample position.
+		step:     0,				// Sample position delta.
+		remain:   0,				// Amount af sample data remaining.
+		reversed: false				// Sample playback is reversed.
+	};
+	this.volume = {
+		channelVolume: 0,			// Current channel volume.
+		sampleVolume:  0,			// Current volume of instrument sample.
+		volumeSlide:   0,			// Volume delta per tick.
+		envelope:      null,		// Volume envelope function object
+	};
+	this.panning = {
+		pan:         0.5,			// Current panning of this channel.
+		panSlide:    0,				// Pannning delta per tick
+		envelope:    null,			// Panning envelope function object.
+	};
+	this.porta = {
+		notePeriod: 0,				// Period of note to porta to.
+		step:       0				// Note porta delta period on each tick.
+	};
+	this.vibrato = {
+		position:  0,				// Vibrato function position.
+		step:      0,				// Vibrato step per tick.
+		amplitude: 0				// Vibrato function amplitude.
+	};
+	this.tremolo = {
+		position:  0,				// Tremolo function position.
+		step:      0,				// Tremolo step per tick.
+		amplitude: 0,				// Tremolo function amplitude.
+		volume:    1
+	};
+	this.tremor = {
+		onCount:  0,				// Number of ticks channel produces sound.
+		offCount: 0,				// Number of ticks channel is muted.
+		muted:    false				// Channel is currently muted by tremor effect.
+	}
+	this.isMuted      = false;			// Channel is muted.
+	this.note         = 0;				// Index of the note being played on this channel.
+	this.period       = 0;				// Current period of this channel.
+	this.noteDelay    = 0;				// Number of ticks to delay note start.
+	this.loopMark     = 0;				// Row to jump back to when looping a pattern section.
+	this.loopCount    = 0;				// Loop section counter.
+	this.tremorCount  = 0;				// Number of ticks before tremor effect mutes channel.
+	this.envelopePos  = 0;				// Panning anv volume envelope positions.
+	this.noteReleased = false;			// Note release marker for envelopes.
+	
+	this.reset = function () {
+		this.sample.sample   = null;
+		this.sample.position = 0;
+		this.sample.step     = 0,
+		this.sample.remain   = 0;
+		this.sample.reversed = false;
+		
+		this.volume.channelVolume = 0;
+		this.volume.sampleVolume  = 0;
+		this.volume.volumeSlide   = 0;
+		this.volume.envelope      = null;
+		
+		this.panning.pan      = 0.5;
+		this.panning.panSlide = 0;
+		this.panning.envelope = null;
+		
+		this.porta.notePeriod = 0;
+		this.porta.step       = 0;
+		
+		this.vibrato.position  = 0;
+		this.vibrato.step      = 0;
+		this.vibrato.amplitude = 0;
+		
+		this.tremolo.position  = 0;
+		this.tremolo.step      = 0;
+		this.tremolo.amplitude = 0;
+		this.tremolo.volume    = 1;
+		
+		this.tremor.onCount  = 0;
+		this.tremor.offCount = 0;
+		this.tremor.muted    = false;
+		
+		this.isMuted      = false;
+		this.tremorMute   = false;
+		this.note         = 0;
+		this.period       = 0;
+		this.noteDelay    = 0;
+		this.loopMark     = 0;
+		this.loopCount    = 0;
+		this.envelopePos  = 0;
+		this.noteReleased = false;
+	};
+};

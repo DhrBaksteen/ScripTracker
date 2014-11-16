@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Envelope.js
  *
@@ -8,7 +10,7 @@
  * Date:    		2014-05-13
  * Last updated:	2014-05-14
  */
-function Envelope () {
+var Envelope = function () {
 	this.type        = EnvelopeType.NONE;		// Set default envelope type.
 	this.points      = [];						// List of envelope points.
 	var lastPosition = -1;						// Position of last insertion.
@@ -54,6 +56,8 @@ function Envelope () {
 	 * defaultValue - Default envelope value used when envelope is off (i.e. type == 0).
 	 */
 	this.getValue = function (position, release, defaultValue) {
+		position = Math.round (position);
+		
 		// Clamp sustain point.
 		if ((this.type & EnvelopeType.SUSTAIN) != 0) {
 			if (!release) {

@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Effects.js
  *
@@ -7,703 +9,813 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-06-21
- * Last updated:	2014-05-27
+ * Last updated:	2014-11-15
  */
 var Effects = {
-    NONE: {
+	NONE: {
 		representations: [ ".", ".", ".", "." ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 		}
 	},
-	
+
 	// Arpeggio varies the frequency of a note every tick depending on the parameters.
 	ARPEGGIO: {
 		representations: [ "0", "J", "?", "0" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// Calculate periods to add depening on arpeggio parameters
 			var arpeggio;
-			if (registers.currentTick % 3 == 0) {
+			if (tick % 3 === 0) {
 				arpeggio = 0;
-			} else if (registers.currentTick  % 3 == 1) {
+			} else if (tick  % 3 === 1) {
 				arpeggio = ((param & 0xF0) >> 4) * 64;
-			} else if (registers.currentTick  % 3 == 2) {
+			} else if (tick  % 3 === 2) {
 				arpeggio = (param & 0x0F) * 64;
 			}
-			
+
 			// Calculate new frequency.
-			var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel] + arpeggio) / 768);
-			registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+			var freq = 8363 * Math.pow (2, (4608 - registers.period + arpeggio) / 768);
+			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
 		}
 	},
-	
+
 	// Note porta up. The rate at which the period of the note is being slid up is quadruppled.
 	PORTA_UP: {
 		representations: [ "1", "F", "?", "1" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0 && param != 0) {
-				registers.portaStep[channel] = param * 4
-			} else if (registers.currentTick > 0) {
-				registers.channelPeriod[channel] -= registers.portaStep[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
-			}	
-		}
-	},
-	
-	// Note porta down. The porta rate is being quadruppled.
-	PORTA_DOWN: {
-		representations: [ "2", "E", "?", "2" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0 && param != 0) {
-				registers.portaStep[channel] = param * 4;
-			} else if (registers.currentTick > 0) {
-				registers.channelPeriod[channel] += registers.portaStep[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0 && param !== 0) {
+				registers.porta.step = param;
+			} else if (tick > 0) {
+				registers.period -= registers.porta.step * player.getTicksPerRow ();
+				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
 			}
 		}
 	},
-	
+
+	// Note porta down. The porta rate is being quadruppled.
+	PORTA_DOWN: {
+		representations: [ "2", "E", "?", "2" ],
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0 && param !== 0) {
+				registers.porta.step = param;
+			} else if (tick > 0) {
+				registers.period += registers.porta.step * player.getTicksPerRow ();
+				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			}
+		}
+	},
+
 	// Porta to the given note with the given porta speed on each tick. Once the target period is reached stop
 	// the porta effect. Porta speed is quadruppled.
 	TONE_PORTA: {
 		representations: [ "3", "G", "?", "3" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
+			if (!registers.sample.sample) return;
+			
 			// Set porta speed if param is present.
-			if (registers.currentTick == 0 && param != 0) {
-				registers.portaStep[channel] = param * 4;
+			if (tick === 0 && param !== 0) {
+				registers.porta.step = param;
 			}
-				
+
 			// Set note to porta to if present.
-			if (registers.currentTick == 0 && pattern.note[registers.currentRow][channel] != 0) {
-				registers.portaNote[channel] = 7680 - (pattern.note[registers.currentRow][channel] - 25 - registers.channelSample[channel].basePeriod) * 64 - registers.channelSample[channel].fineTune / 2;
+			if (tick === 0 && player.getNote (channel) !== 0) {
+				registers.porta.notePeriod = 7680 - (player.getNote (channel) - 26 - registers.sample.sample.basePeriod) * 64 - registers.sample.sample.fineTune / 2;
 			}
 
 			// Porta up or down depending on current note period and target period.
-			if (registers.channelPeriod[channel] < registers.portaNote[channel]) {
-				registers.channelPeriod[channel] += registers.portaStep[channel];
-				
+			if (registers.period < registers.porta.notePeriod) {
+				registers.period += registers.porta.step * player.getTicksPerRow ();
+
 				// When the target period is reached stop porta.
-				if (registers.channelPeriod[channel] > registers.portaNote[channel]) {
-					registers.channelPeriod[channel] = registers.portaNote[channel];
+				if (registers.period > registers.porta.notePeriod) {
+					registers.period = registers.porta.notePeriod;
 				}
-			} else if (registers.channelPeriod[channel] > registers.portaNote[channel]) {
-				registers.channelPeriod[channel] -= registers.portaStep[channel];
-				
+			} else if (registers.period > registers.porta.notePeriod) {
+				registers.period -= registers.porta.step * player.getTicksPerRow ();
+
 				// When the target period is reached stop porta.
-				if (registers.channelPeriod[channel] < registers.portaNote[channel]) {
-					registers.channelPeriod[channel] = registers.portaNote[channel];
+				if (registers.period < registers.porta.notePeriod) {
+					registers.period = registers.porta.notePeriod;
 				}
 			}
 
 			// Calculate new sample step.
-			var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-			registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+			var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
 		}
 	},
-	
+
 	// Note vibrato using a sine function with an amplitude of a given number of finetunes and a given speed.
 	VIBRATO: {
 		representations: [ "4", "H", "?", "4" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// At tick 0 and non zero parameter reset vibrato sine and set new parameters.
-			if (registers.currentTick == 0 && param != 0) {
+			if (tick === 0 && param !== 0) {
 				// Set vibrato step if parameter non zero.
-				if ((param & 0xF0) != 0) {
-					registers.vibratoStep[channel] = (2 * Math.PI) * (((param & 0xF0) >> 4) * registers.ticksPerRow) / 64.0;
+				if ((param & 0xF0) !== 0) {
+					registers.vibrato.step = (2 * Math.PI) * (((param & 0xF0) >> 4) * player.getTicksPerRow ()) / 64.0;
 				}
-				
+
 				// Set vibrato amplitude if parameter non zero.
-				if ((param & 0x0F) != 0) {
-					registers.vibratoAmp[channel] = (param & 0x0F) * 8;
+				if ((param & 0x0F) !== 0) {
+					registers.vibrato.amplitude = (param & 0x0F) * 2;
 				}
-				
-				registers.vibratoPos[channel] = 0;
+
+				registers.vibrato.position = 0;
 			} 
-										
+
 			//  Calculate new note frequency and advance vibrato sine pos.
-			var vibrato = Math.sin (registers.vibratoPos[channel]) * registers.vibratoAmp[channel];
-			var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel] + vibrato) / 768);
-			
-			registers.sampleStep[channel]  = freq / (registers.samplesPerTick * 3);
-			registers.vibratoPos[channel] += registers.vibratoStep[channel];
+			var vibrato = Math.sin (registers.vibrato.position) * registers.vibrato.amplitude;
+			var freq = 8363 * Math.pow (2, (4608 - registers.period + vibrato) / 768);
+
+			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			registers.vibrato.position += registers.vibrato.step;
 		}
 	},
-	
+
 	// Slide the volume up or down on every tick except the first and porta to the note that was set by the
 	// tone porta effect. Parameter values > 127 will slide up, lower values slide down.
 	TONE_PORTA_VOL_SLIDE: {
 		representations: [ "5", "L", "?", "5" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
+			if (!registers.sample.sample) return;
+			
 			// Set note to porta to if present.
-			if (registers.currentTick == 0 && pattern.note[registers.currentRow][channel] != 0) {
-				registers.portaNote[channel] = 7680 - (pattern.note[registers.currentRow][channel] - 25 - registers.channelSample[channel].basePeriod) * 64 - registers.channelSample[channel].fineTune / 2;
+			if (tick === 0 && player.getNote (channel) != 0) {
+				registers.porta.notePeriod = 7680 - (player.getNote (channel) - 26 - registers.sample.sample.basePeriod) * 64 - registers.sample.sample.fineTune / 2;
 			}
-		
+
 			// Porta up or down depending on current note period and target period.
-			if (registers.channelPeriod[channel] < registers.portaNote[channel]) {
-				registers.channelPeriod[channel] += registers.portaStep[channel];
-			
+			if (registers.period < registers.porta.notePeriod) {
+				registers.period += registers.porta.step;
+
 				// When the target period is reached stop porta.
-				if (registers.channelPeriod[channel] > registers.portaNote[channel]) {
-					registers.channelPeriod[channel] = registers.portaNote[channel];
+				if (registers.period > registers.porta.notePeriod) {
+					registers.period = registers.porta.notePeriod;
 				}
-			} else if (registers.channelPeriod[channel] > registers.portaNote[channel]) {
-				registers.channelPeriod[channel] -= registers.portaStep[channel];
-			
+			} else if (registers.period > registers.porta.notePeriod) {
+				registers.period -= registers.porta.step;
+
 				// When the target period is reached stop porta.
-				if (registers.channelPeriod[channel] < registers.portaNote[channel]) {
-					registers.channelPeriod[channel] = registers.portaNote[channel];
+				if (registers.period < registers.porta.notePeriod) {
+					registers.period = registers.porta.notePeriod;
 				}
 			}
-			
+
 			// Calculate new sample step and set volume.
-			var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-			registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
-			
+			var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+
 			var slide = (((param & 0xF0) != 0) ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
-			registers.sampleVolume[channel] = Math.max (0.0, Math.min (registers.sampleVolume[channel] + slide, 1.0));
+			registers.volume.channelVolume = Math.max (0.0, Math.min (registers.volume.channelVolume + slide, 1.0));
 		}
 	},
-	
+
 	// Note vibrato using previous vibrato parameters and do a volume slide using current parameter.
 	VIBRATO_VOL_SLIDE: {
 		representations: [ "6", "K", "?", "6" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy volume slide parameter if set.
-			if (registers.currentTick == 0 && param != 0) {
-				registers.volumeSlide[channel] = param;
+			if (tick === 0 && param !== 0) {
+				registers.volume.channelVolumeSlide = param;
 			}
-		
+
 			//  Calculate new note frequency and advance vibrato sine pos.
-			var vibrato = Math.sin (registers.vibratoPos[channel]) * registers.vibratoAmp[channel];
-			var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel] + vibrato) / 768);
-			registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
-			
-			registers.vibratoPos[channel] += registers.vibratoStep[channel];
-			
+			var vibrato = Math.sin (registers.vibrato.position) * registers.vibrato.amplitude;
+			var freq = 8363 * Math.pow (2, (4608 - registers.period + vibrato) / 768);
+			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+
+			registers.vibrato.position += registers.vibrato.step;
+
 			// Set sample volume.
-			var slide = (((registers.volumeSlide[channel] & 0xF0) != 0) ? (registers.volumeSlide[channel] & 0xF0) >> 4 : -(registers.volumeSlide[channel] & 0x0F)) / 64.0;
-			registers.sampleVolume[channel] = Math.max (0.0, Math.min (registers.sampleVolume[channel] + slide, 1.0));
+			var slide = (((registers.volume.channelVolumeSlide & 0xF0) != 0) ? (registers.volume.channelVolumeSlide & 0xF0) >> 4 : -(registers.volume.channelVolumeSlide & 0x0F)) / 64.0;
+			registers.volume.channelVolume = Math.max (0.0, Math.min (registers.volume.channelVolume + slide, 1.0));
 		}
 	},
-	
+
 	// Tremolo vibrates the volume up and down.
 	TREMOLO: {
 		representations: [ "7", "R", "?", "7" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// At tick 0 and non zero parameter reset tremolo sine and set new parameters.
-			if (registers.currentTick == 0 && param != 0) {
+			if (tick === 0 && param !== 0) {
 				// Set tremolo step if parameter non zero.
-				if ((param & 0xF0) != 0) {
-					registers.tremoloStep[channel] = (2 * Math.PI) * (((param & 0xF0) >> 4) * registers.ticksPerRow) / 64.0;
+				if ((param & 0xF0) !== 0) {
+					registers.tremolo.step = (2 * Math.PI) * (((param & 0xF0) >> 4) * player.getTicksPerRow ()) / 64.0;
 				}
-				
+
 				// Set tremolo amplitude if parameter non zero.
-				if ((param & 0x0F) != 0) {
-					registers.tremoloAmp[channel]  = (param & 0x0F) / 15;
+				if ((param & 0x0F) !== 0) {
+					registers.tremolo.amplitude = (param & 0x0F) / 30;
 				}
-				
-				registers.tremoloPos[channel]  = 0;
+
+				registers.tremolo.position = 0;
 			} 
-										
+
 			//  Calculate new volume delta and advance vibrato sine pos.
-			registers.tremolo[channel]     = 1.0 - (Math.sin (registers.tremoloPos[channel]) * registers.tremoloAmp[channel]);
-			registers.tremoloPos[channel] += registers.tremoloStep[channel];
+			registers.tremolo.volume    = 1.0 - (Math.sin (registers.tremolo.position) * registers.tremolo.amplitude);
+			registers.tremolo.position += registers.tremolo.step;
 		}
 	},
-	
+
 	// Set panning for this channel. 0x00 - left, 0x40 - middle, 0x80 - right. Anything greater than 0x80 
 	// causes surround sound on the current channel.
 	SET_PAN: {
 		representations: [ "8", "?", "?", "8" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.channelPan[channel] = param / 128.0;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.panning.pan = 1 - (param / 128.0);
 			}
 		}
 	},
-	
+
 	// Set sample offset in words.
 	SAMPLE_OFFSET: {
 		representations: [ "9", "O", "?", "9" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.samplePos[channel]     = param * 256;
-				registers.sampleRemain[channel] -= param * 256;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.sample.position  = param * 256;
+				registers.sample.remain   -= param * 256;
 			}
 		}
 	},
-	
+
 	// Slide the volume up or down on every tick except the first. Parameter values > 127 will slide up, lower
 	// values slide down.
 	VOLUME_SLIDE: {
 		representations: [ "A", "D", "?", "A" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy parameter if set.
-			if (registers.currentTick == 0 && param != 0) {
-				registers.volumeSlide[channel] = param;
+			if (tick === 0 && param !== 0) {
+				registers.volume.channelVolumeSlide = param;
 			}
 			
-			if (registers.currentTick > 0 && registers.volumeSlide[channel] != 0) {
-				if ((registers.volumeSlide[channel] & 0xF0) == 0xF0 && (registers.volumeSlide[channel] & 0x0F) != 0x00) {
+			if (tick > 0 && registers.volume.channelVolumeSlide !== 0) {
+				if ((registers.volume.channelVolumeSlide & 0xF0) === 0xF0 && (registers.volume.channelVolumeSlide & 0x0F) !== 0x00) {
 					// Fine volume slide down only on tick 1.
-					if (registers.currentTick == 1) {
-						var slide = (registers.volumeSlide[channel] & 0x0F) / 64.0;
-						registers.sampleVolume[channel] = Math.max (0.0, registers.sampleVolume[channel] - slide);
+					if (tick === 1) {
+						var slide = (registers.volume.channelVolumeSlide & 0x0F) / 64.0;
+						registers.volume.channelVolume = Math.max (0.0, registers.volume.channelVolume - slide);
 					}
-				} else if ((registers.volumeSlide[channel] & 0x0F) == 0x0F && (registers.volumeSlide[channel] & 0xF0) != 0x00) {
-					// Fine volume slide up only on tick 1.
-					if (registers.currentTick == 1) {
-						var slide = ((registers.volumeSlide[channel] & 0xF0) >> 4) / 64.0;
-						registers.sampleVolume[channel] = Math.min (1.0, registers.sampleVolume[channel] + slide);
+				} else if ((registers.volume.channelVolumeSlide & 0x0F) === 0x0F && (registers.volume.channelVolumeSlide & 0xF0) !== 0x00) {
+					// Fine volume slide up.
+					if (tick === 1) {
+						var slide = ((registers.volume.channelVolumeSlide & 0xF0) >> 4) / 64.0;
+						registers.volume.channelVolume = Math.min (1.0, registers.volume.channelVolume + slide);
 					}
 				} else {
 					// Normal volume slide.
-					var slide = (((registers.volumeSlide[channel] & 0xF0) != 0) ? (registers.volumeSlide[channel] & 0xF0) >> 4 : -(registers.volumeSlide[channel] & 0x0F)) / 64.0;
-					registers.sampleVolume[channel] = Math.max (0.0, Math.min (registers.sampleVolume[channel] + slide, 1.0));
+					var slide = (((registers.volume.channelVolumeSlide & 0xF0) != 0) ? (registers.volume.channelVolumeSlide & 0xF0) >> 4 : -(registers.volume.channelVolumeSlide & 0x0F)) / 64.0;
+					registers.volume.channelVolume = Math.max (0.0, Math.min (registers.volume.channelVolume + slide, 1.0));
 				}
 			}
 		}
 	},
-	
+
 	// After this row jump to row 1 of the given order.
 	POSITION_JUMP: {
 		representations: [ "B", "B", "?", "B" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.orderJump = param;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				player.setOrderJump (param);
 			}
 		}
 	},
-	
+
 	// Set the volume of a channel on the first tick according to the given parameter.
 	SET_VOLUME: {
 		representations: [ "C", "?", "?", "C" ],
-		handler: function (registers, channel, param, pattern) {		
-			if (registers.currentTick == 0) {
-				registers.sampleVolume[channel] = Math.max (0.0, Math.min (param / 64.0, 1.0));
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.volume.channelVolume = Math.max (0.0, Math.min (param / 64.0, 1.0));
 			}
 		}
 	},
-	
+
 	// At the end of this row jump to the next order and start playing at the row given in the parameter.
 	PATTERN_BREAK: {
 		representations: [ "D", "C", "?", "D" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.breakPattern = ((param & 0xF0) >> 4) * 10 + (param & 0x0F);
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				player.setBreakPattern (((param & 0xF0) >> 4) * 10 + (param & 0x0F));
 			}
 		}
 	},
-	
+
 	SET_FILTER: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				console.log ("Effect not supported: SET_FILTER");
+			}
 		}
 	},
-	
+
 	// Slide note pitch up only on the first tick.
 	FINE_PORTA_UP: {
 		representations: [ "E", "?", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
 				// If param value present change porta step.
-				if (param & 0x0F != 0) {
-					registers.portaStep[channel] = (param & 0x0F) * 4;
+				if (param & 0x0F !== 0) {
+					registers.porta.step = (param & 0x0F);
 				}
-				
+
 				// Slide pitch up.
-				registers.channelPeriod[channel] -= registers.portaStep[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+				registers.period -= registers.porta.step * player.getTicksPerRow ();
+				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
 			}
 		}
 	},
-	
+
 	// Slide note pitch down only on the first tick.
 	FINE_PORTA_DOWN: {
 		representations: [ "E", "?", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
 				// If param value present change porta step.
-				if (param & 0x0F != 0) {
-					registers.portaStep[channel] = (param & 0x0F) * 4;
+				if (param & 0x0F !== 0) {
+					registers.porta.step = (param & 0x0F);
 				}
 
 				// Slide pitch down.
-				registers.channelPeriod[channel] += registers.portaStep[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+				registers.period += registers.porta.step * player.getTicksPerRow ();
+				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
 			}
 		}
 	},
-	
+
 	SET_GLISANDO: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				console.log ("Effect not supported: SET_GLISANDO");
+			}
 		}
 	},
-	
+
 	SET_VIBRATO: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				console.log ("Effect not supported: SET_VIBRATO");
+			}
 		}
 	},
-	
+
 	// Set the finetune of the sample playing on the current channel.
 	SET_FINETUNE: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0 && registers.channelSample[channel] != null) {
-				registers.channelSample[channel].fineTune = param & 0x0F;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0 && registers.sample.sample !== null) {
+				registers.sample.sample.fineTune = param & 0x0F;
 			}
 		}
 	},
-	
+
 	// Pattern section loop.
 	SET_LOOP: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				if ((param & 0x0F) == 0) {
-					registers.loopMark[channel] = registers.currentRow;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				if ((param & 0x0F) === 0) {
+					registers.loopMark = player.getCurrentRow ();
 				} else {
-					if (registers.loopCount[channel] == 0) {
-						registers.loopCount[channel] = (param & 0x0F);
+					if (registers.loopCount == 0) {
+						registers.loopCount = (param & 0x0F);
 					} else {
-						registers.loopCount[channel] --;
+						registers.loopCount --;
 					}
-					
-					if (registers.loopCount[channel] > 0) {
-						registers.rowJump = registers.loopMark[channel];
+
+					if (registers.loopCount > 0) {
+						player.setRowJump (registers.loopMark);
 					}
 				}
 			}
 		}
 	},
-	
+
 	SET_TREMOLO: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				console.log ("Effect not supported: SET_TREMOLO");
+			}
 		}
 	},
-	
+
 	// Set panning for this channel. 0x00 - left --> 0x0F - right.
 	SET_PAN_16: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.channelPan[channel] = (param & 0x0F) / 15.0;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.panning.pan = (param & 0x0F) / 15.0;
 			}
 		}
 	},
-	
+
 	// Retrigger the note every param ticks.
 	RETRIGGER:{
 		representations: [ "E", "?", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick % (param & 0x0F) == 0) {
-				registers.sampleRemain[channel]  = registers.channelSample[channel].sampleLength;
-				registers.samplePos[channel]     = 0;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
+				registers.sample.remain   = registers.sample.sample.sampleLength;
+				registers.sample.position = 0;
 			}
 		}
 	},
-	
+
 	// At the first tick of the row add x to the volume.
 	FINE_VOL_SLIDE_UP: {
 		representations: [ "E", "?", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.sampleVolume[channel] = Math.min (registers.sampleVolume[channel] + (param & 0x0F) / 15.0, 1.0);
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.volume.channelVolume = Math.min (registers.volume.sampleVolume + (param & 0x0F) / 15.0, 1.0);
 			}
 		}
 	},
-	
+
 	// At the first tick of the row subtract x from the volume.
 	FINE_VOL_SLIDE_DOWN: {
 		representations: [ "E", "?", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.sampleVolume[channel] = Math.max (0.0, registers.sampleVolume[channel] - (param & 0x0F) / 15.0);
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.volume.channelVolume = Math.max (0.0, registers.volume.sampleVolume - (param & 0x0F) / 15.0);
 			}
 		}
 	},
-	
+
 	// Cut the volume of the note to 0 if the current tick equals the parameter value.
 	CUT_NOTE: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == (param & 0x0F)) {
-				registers.sampleVolume[channel] = 0.0;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === (param & 0x0F)) {
+				registers.volume.channelVolume = 0.0;
 			}
 		}
 	},
-	
+
 	// Set the number of ticks to wait before starting the note.
 	DELAY_NOTE: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.noteDelay[channel] = (param & 0x0F);
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.noteDelay = (param & 0x0F);
 			}
 		}
 	},
-	
+
 	// Keep the player at the current row for the time equivalent to param * rowDelay. Notes are not retriggered, but 
 	// effects remain active.
 	DELAY_PATTERN: {
 		representations: [ "E", "S", "?", "E" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.patternDelay == 0) {
+		handler: function (registers, param, tick, channel, player) {
+			if (registers.patternDelay === 0) {
 				registers.patternDelay = (param & 0x0F) + 1;
 			}
 		}
 	},
-	
+
 	// Set BMP or tempo on the first tick according to the parameter of the effect. A value greater than 32 will
 	// change the BPM, other values change the tempo.
 	SET_TEMPO_BPM: {
 		representations: [ "F", "?", "?", "F" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
 				if (param <= 32) {
-					Effects.SET_SPEED.handler (registers, channel, param, pattern);
+					Effects.SET_SPEED.handler (registers, param, tick, channel, player);
 				} else {
-					Effects.SET_TEMPO.handler (registers, channel, param, pattern);
+					Effects.SET_TEMPO.handler (registers, param, tick, channel, player);
 				}
 			}
 		}
 	},
-	
+
 	// Set speed as defined by the number of ticks per row.
 	SET_SPEED: {
 		representations: [ "?", "A", "?", "?" ],
-		handler: function (registers, channel, param, pattern) {
-			if (param != 0) {
-				registers.ticksPerRow = param;
-				
-				var rpm = (24 * registers.bpm) / registers.ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
-				var tpm = rpm * registers.ticksPerRow;
-				
-				registers.rowDelay       = 60000 / rpm;						// Number of milliseconds in one row.
-				registers.samplesPerTick = Math.round (registers.sampleRate / (tpm / 60));
-			} else {				
-				registers.reset ();
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				if (param !== 0) {
+					player.setTicksPerRow (param);
+					
+					var rpm = (24 * player.getBpm ()) / player.getTicksPerRow ();
+					var tpm = rpm * player.getTicksPerRow ();
+					player.setSamplesPerTick (Math.round (player.getSampleRate () / (tpm / 60)));
+				} else {
+					player.stop ();
+					player.resetPlayback ();
+				}
 			}
 		}
 	},
-	
+
 	// Set tempo as the number of beats per minute.
 	SET_TEMPO: {
 		representations: [ "?", "T", "?", "?" ],
-		handler: function (registers, channel, param, pattern) {
-			registers.bpm = param;
-			
-			var rpm = (24 * registers.bpm) / registers.ticksPerRow;		// Yes, this is using a base of 6 ticks per row and it's correct!
-			var tpm = rpm * registers.ticksPerRow;
-			
-			registers.rowDelay       = 60000 / rpm;						// Number of milliseconds in one row.
-			registers.samplesPerTick = Math.round (registers.sampleRate / (tpm / 60));
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				player.setBpm (param);
+				
+				var rpm = (24 * player.getBpm ()) / player.getTicksPerRow ();
+				var tpm = rpm * player.getTicksPerRow ();
+				player.setSamplesPerTick (Math.round (player.getSampleRate () / (tpm / 60)));
+			}
 		}
 	},
-	
-	// Retrigger note if the current tick is equal to param Y and perform a volume slide using
-	// param X.
+
+	// Retrigger note if the current tick is equal to param Y and perform a volume slide using param X.
 	RETRIG_VOL_SLIDE: {
 		representations: [ "?", "Q", "?", "R" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick % (param & 0x0F) == 0) {
-				registers.sampleRemain[channel]  = registers.channelSample[channel].sampleLength;
-				registers.samplePos[channel]     = 0;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
+				registers.sample.remain   = registers.sample.sample.sampleLength;
+				registers.sample.position = 0;
 			}
-			
-			if (registers.currentTick == 0 && (param & 0xF0) != 0) {
-				registers.volumeSlide[channel] = (param & 0xF0) >> 4;
-			} else if (registers.currentTick > 0) {						
-				switch (registers.volumeSlide[channel]) {
+
+			if (tick === 0 && (param & 0xF0) !== 0) {
+				registers.volume.channelVolumeSlide = (param & 0xF0) >> 4;
+			} else if (tick > 0) {						
+				switch (registers.volume.channelVolumeSlide) {
 					case 1:
-						registers.sampleVolume[channel] -= (1 / 64);
+						registers.volume.channelVolume -= (1 / 64);
 						break;
 					case 2:
-						registers.sampleVolume[channel] -= (2 / 64);
+						registers.volume.channelVolume -= (2 / 64);
 						break;
 					case 3:
-						registers.sampleVolume[channel] -= (4 / 64);
+						registers.volume.channelVolume -= (4 / 64);
 						break;
 					case 4:
-						registers.sampleVolume[channel] -= (8 / 64);
+						registers.volume.channelVolume -= (8 / 64);
 						break;
 					case 5:
-						registers.sampleVolume[channel] -= (16 / 64);
+						registers.volume.channelVolume -= (16 / 64);
 						break;
 					case 6:
-						registers.sampleVolume[channel] *= 0.67;
+						registers.volume.channelVolume *= 0.67;
 						break;
 					case 7:
-						registers.sampleVolume[channel] *= 0.5;
+						registers.volume.channelVolume *= 0.5;
 						break;
 					case 9:
-						registers.sampleVolume[channel] += (1 / 64);
+						registers.volume.channelVolume += (1 / 64);
 						break;
 					case 10:
-						registers.sampleVolume[channel] += (2 / 64);
+						registers.volume.channelVolume += (2 / 64);
 						break;
 					case 11:
-						registers.sampleVolume[channel] += (4 / 64);
+						registers.volume.channelVolume += (4 / 64);
 						break;
 					case 12:
-						registers.sampleVolume[channel] += (8 / 64);
+						registers.volume.channelVolume += (8 / 64);
 						break;
 					case 13:
-						registers.sampleVolume[channel] += (16 / 64);
+						registers.volume.channelVolume += (16 / 64);
 						break;
 					case 14:
-						registers.sampleVolume[channel] *= 1.5;
+						registers.volume.channelVolume *= 1.5;
 						break;
 					case 15:
-						registers.sampleVolume[channel] *= 2.0;
+						registers.volume.channelVolume *= 2.0;
 						break;
 					default:
 						break;
 				}
-				
-				registers.sampleVolume[channel] = Math.max (0.0, Math.min (registers.sampleVolume[channel], 1.0));
+
+				registers.volume.channelVolume = Math.max (0.0, Math.min (registers.volume.channelVolume, 1.0));
 			}			
 		}
 	},
-	
+
 	// Set the global volume.
 	SET_GLOBAL_VOLUME: {
 		representations: [ "?", "V", "?", "G" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.masterVolume = Math.max (0.0, Math.min (param / 64.0, 1.0));
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				player.setMasterVolume (Math.max (0.0, Math.min (param / 64.0, 1.0)));
 			}
 		}
 	},
-	
+
 	// Slide global volume up or down.
 	GLOBAL_VOLUME_SLIDE: {
 		representations: [ "?", "?", "?", "H" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy parameter if set.
-			if (registers.currentTick == 0 && param != 0) {
-				registers.globalVolSlide = (((param & 0xF0) != 0) ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
+			if (tick === 0 && param !== 0) {
+				player.setMasterVolSlide ((((param & 0xF0) != 0) ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0);
 			}
-			
+
 			// Slide volume on every tick > 0.
-			if (registers.currentTick > 0 && registers.globalVolSlide != 0) {
-				registers.masterVolume = Math.max (0.0, Math.min (registers.masterVolume + registers.globalVolSlide, 1.0));
-			}		
+			if (tick > 0 && player.getMasterVolSlide () !== 0) {
+				player.setMasterVolume (Math.max (0.0, Math.min (player.getMasterVolume () + player.getMasterVolSlide (), 1.0)));
+			}
 		}
 	},
-	
+
 	// Set envelope position on current instrument.
 	ENVELOPE_POSITION: {
 		representations: [ "?", "?", "?", "L" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				registers.envelopePos[channel] = param;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				registers.envelopePosition = param;
 			}
 		}
 	},
-	
+
 	// Slide panning of the channel left or right.
 	PAN_SLIDE: {
 		representations: [ "?", "?", "?", "P" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy parameter if set.
-			if (registers.currentTick == 0 && param != 0) {
-				registers.panSlide[channel] = ((param & 0xF0) > 0 ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
+			if (tick === 0 && param !== 0) {
+				registers.panning.panSlide = ((param & 0xF0) > 0 ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
 			}
-			
+
 			// Change channel panning.
-			if (registers.currentTick > 0) {
-				registers.channelPan[channel] = Math.max (0, Math.min (registers.channelPan[channel] + registers.panSlide[channel], 1));
+			if (tick > 0) {
+				registers.panning.pan = Math.max (0, Math.min (registers.panning.pan + registers.panning.panSlide, 1));
 			}
 		}
 	},
-	
+
 	// Tremor turns a note on for X tick and then switches it off for Y frames.
 	TREMOR: {
 		representations: [ "?", "I", "?", "T" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				if (pattern.volume[registers.currentRow][channel] > -1) {
-					registers.sampleVolume[channel] = pattern.volume[registers.currentRow][channel];
-				} else {
-					registers.sampleVolume[channel] = registers.channelSample[channel].volume;	
-				}
-			} else if (registers.currentTick >= (param & 0xF0) >> 4	) {
-				registers.sampleVolume[channel] = 0;
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0 && param !== 0) {
+				registers.tremor.onCount  = param & 0xF0;
+				registers.tremor.offCount = param & 0x0F;
+				registers.tremor.muted    = false;
+			} else {
+				var tremorCount = registers.tremor.onCount + registers.tremor.offCount;
+				registers.tremor.muted = (tick % tremorCount) >= registers.tremor.onCount;
 			}
 		}
 	},
-	
+
 	// Fine vibrato is the same as regular vibrato, except that it only triggers every 4th tick.
 	FINE_VIBRATO: {
 		representations: [ "?", "U", "?", "?" ],
-		handler: function (registers, channel, param, pattern) {
+		handler: function (registers, param, tick, channel, player) {
 			// At tick 0 and non zero parameter reset vibrato sine and set new parameters.
-			if (registers.currentTick == 0 && param != 0) {
+			if (tick === 0 && param !== 0) {
 				// Set vibrato step if parameter non zero.
 				if ((param & 0xF0) != 0) {
-					registers.vibratoStep[channel] = (2 * Math.PI) * (((param & 0xF0) >> 4) * registers.ticksPerRow) / 64.0;
+					registers.vibrato.step = (2 * Math.PI) * (((param & 0xF0) >> 4) * player.getTicksPerRow ()) / 64.0;
 				}
-				
+
 				// Set vibrato amplitude if parameter non zero.
 				if ((param & 0x0F) != 0) {
-					registers.vibratoAmp[channel] = (param & 0x0F) * 8;
+					registers.vibrato.amplitude = (param & 0x0F) * 8;
 				}
-				
-				registers.vibratoPos[channel] = 0;
+
+				registers.vibrato.position = 0;
 			} 
-										
+
 			//  Calculate new note frequency and advance vibrato sine pos.
-			if (registers.currentTick % 4 == 0) {
-				var vibrato = Math.sin (registers.vibratoPos[channel]) * registers.vibratoAmp[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel] + vibrato) / 768);
-				
-				registers.sampleStep[channel]  = freq / (registers.samplesPerTick * 3);
-				registers.vibratoPos[channel] += registers.vibratoStep[channel];
+			if (tick % 4 == 0) {
+				var vibrato = Math.sin (registers.vibrato.position) * registers.vibrato.amplitude;
+				var freq = 8363 * Math.pow (2, (4608 - registers.period + vibrato) / 768);
+
+				registers.sample.step  = freq / (player.getSamplesPerTick () * 3);
+				registers.vibrato.position += registers.vibrato.step;
 			}
 		}
 	},
-	
+
 	// Extra fine porta up 4 times finer than fine porta up.
 	EXTRA_FINE_PORTA_UP: {
 		representations: [ "?", "?", "?", "X" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
 				// If param value present change porta step.
-				if (param & 0x0F != 0) {
-					registers.portaStep[channel] = (param & 0x0F);
+				if (param & 0x0F !== 0) {
+					registers.porta.step = (param & 0x0F);
 				}
-				
+
 				// Slide pitch up.
-				registers.channelPeriod[channel] -= registers.portaStep[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+				registers.period -= registers.porta.step;
+				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			}
+		}
+	},
+
+	// Extra fine porta down 4 times finer than fine porta down.
+	EXTRA_FINE_PORTA_DOWN: {
+		representations: [ "?", "?", "?", "X" ],
+		handler: function (registers, param, tick, channel, player) {
+			if (tick === 0) {
+				// If param value present change porta step.
+				if (param & 0x0F !== 0) {
+					registers.porta.step = (param & 0x0F);
+				}
+
+				// Slide pitch down.
+				registers.period += registers.porta.step;
+				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
+				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
 			}
 		}
 	},
 	
-	// Extra fine porta down 4 times finer than fine porta down.
-	EXTRA_FINE_PORTA_DOWN: {
-		representations: [ "?", "?", "?", "X" ],
-		handler: function (registers, channel, param, pattern) {
-			if (registers.currentTick == 0) {
-				// If param value present change porta step.
-				if (param & 0x0F != 0) {
-					registers.portaStep[channel] = (param & 0x0F);
-				}
+	// Parse effect parameter from volume column and handle the effect.
+	VOLUME_EFFECT: {
+		representations: ["", "", "", "V"],
+		handler: function (registers, params, tick, channel, player) {
+			var effect = (params & 0xF0) >> 4;
+			var param  = params & 0x0F;
 
-				// Slide pitch down.
-				registers.channelPeriod[channel] += registers.portaStep[channel];
-				var freq = 8363 * Math.pow (2, (4608 - registers.channelPeriod[channel]) / 768);
-				registers.sampleStep[channel] = freq / (registers.samplesPerTick * 3);
+			switch (effect) {
+				// Volume slide down
+				case 0x05:
+					Effects.VOLUME_SLIDE.handler (registers, param, tick, channel, player);
+					break;
+					
+				// Volume slide up.
+				case 0x06:
+					param = param << 4;
+					Effects.VOLUME_SLIDE.handler (registers, param, tick, channel, player);
+					break;
+					
+				// Fine volume slide down.
+				case 0x07:
+					param = 0xF0 + param;
+					Effects.VOLUME_SLIDE.handler (registers, param, tick, channel, player);
+					break;
+				
+				// Fine volume slide up.
+				case 0x08:
+					param = (param << 4) + 0x0F;
+					Effects.VOLUME_SLIDE.handler (registers, param, tick, channel, player);
+					break;
+				
+				// Vibrator with speed only param.
+				case 0x09:
+					param = param << 4;
+					Effects.VIBRATO.handler (registers, param, tick, channel, player);
+					break;
+				
+				// Vibrato with depth only param.
+				case 0x0A:
+					Effects.VIBRATO.handler (registers, param, tick, channel, player);
+					break;
+				
+				// Set panning.
+				case 0x0B:
+					param = param * 2 + 11
+					Effects.SET_PAN.handler (registers, param, tick, channel, player);
+					break;
+					
+				// Slide panning left.
+				case 0x0C:
+					Effects.PAN_SLIDE.handler (registers, param, tick, channel, player);
+					break;
+				
+				// Slide panning right.
+				case 0x0D:
+					param = param << 4;
+					Effects.PAN_SLIDE.handler (registers, param, tick, channel, player);
+					break;
+					
+				// Porta to note.
+				case 0x0E:
+					param *= 4;
+					Effects.TONE_PORTA.handler (registers, param, tick, channel, player);
+					break;
+				
+				default:
+					break;
 			}
 		}
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

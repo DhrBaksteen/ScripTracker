@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Module.js
  *
@@ -9,12 +11,12 @@
  * Last updated:	2014-05-19
  */
  function Module () {
-	this.name = "";                     // Name of this song
+	this.name = "";						// Name of this song
 	this.type = null;					// Module type (mod, s3m, it, xm)
 
-	this.songLength      = 0;           // Number of orders in the order table
-	this.restartPosition = 0;           // Index in order table to jump to at song end
-    this.orders          = [];          // Order table
+	this.songLength      = 0;			// Number of orders in the order table
+	this.restartPosition = 0;			// Index in order table to jump to at song end
+    this.orders          = [];			// Order table
 
 	this.channels     = 0;				// Number of channels in this module
 	this.patternCount = 0;				// Number of patterns in this module
@@ -24,7 +26,7 @@
 	this.instruments     = [];			// Instruments used in this module
 	this.signedSample    = true;		// Is sample data signed or unsigned
 
-	this.defaultTempo  = 6;             // Default number of ticks per row
-	this.defaultBPM    = 125;           // Default BPM
-	this.defaultVolume = 1.0;           // Default global volume
+	this.defaultTempo  = 6;				// Default number of ticks per row
+	this.defaultBPM    = 125;			// Default BPM
+	this.defaultVolume = 1.0;			// Default global volume
 }
