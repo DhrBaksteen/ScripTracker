@@ -8,6 +8,21 @@ Supported browsers are Chrome, Firefox, Safari and Opera.
 
 ##Usage
 
+Required source files (until I minimize stuff):
+```html
+<script type="text/javascript" src="js/ScripTracker.js"></script>
+<script type="text/javascript" src="js/Enums.js"></script>
+<script type="text/javascript" src="js/Module.js"></script>
+<script type="text/javascript" src="js/Pattern.js"></script>
+<script type="text/javascript" src="js/Instrument.js"></script>
+<script type="text/javascript" src="js/Sample.js"></script>
+<script type="text/javascript" src="js/Effects.js"></script>
+<script type="text/javascript" src="js/Envelope.js"></script>
+<script type="text/javascript" src="js/ModLoader.js"></script>
+<script type="text/javascript" src="js/S3mLoader.js"></script>
+<script type="text/javascript" src="js/XmLoader.js"></script>
+```
+
 To load and play a module:
 ```javascript
 var modPlayer = new ScripTracker();
