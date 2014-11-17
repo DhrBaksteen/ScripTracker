@@ -13,14 +13,14 @@
  */
 var Effects = {
 	NONE: {
-		representations: [ ".", ".", ".", "." ],
+		representation: ".",
 		handler: function (registers, param, tick, channel, player) {
 		}
 	},
 
 	// Arpeggio varies the frequency of a note every tick depending on the parameters.
 	ARPEGGIO: {
-		representations: [ "0", "J", "?", "0" ],
+		representation: "0",
 		handler: function (registers, param, tick, channel, player) {
 			// Calculate periods to add depening on arpeggio parameters
 			var arpeggio;
@@ -40,7 +40,7 @@ var Effects = {
 
 	// Note porta up. The rate at which the period of the note is being slid up is quadruppled.
 	PORTA_UP: {
-		representations: [ "1", "F", "?", "1" ],
+		representation: "1",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0 && param !== 0) {
 				registers.porta.step = param;
@@ -54,7 +54,7 @@ var Effects = {
 
 	// Note porta down. The porta rate is being quadruppled.
 	PORTA_DOWN: {
-		representations: [ "2", "E", "?", "2" ],
+		representation: "2",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0 && param !== 0) {
 				registers.porta.step = param;
@@ -69,7 +69,7 @@ var Effects = {
 	// Porta to the given note with the given porta speed on each tick. Once the target period is reached stop
 	// the porta effect. Porta speed is quadruppled.
 	TONE_PORTA: {
-		representations: [ "3", "G", "?", "3" ],
+		representation: "3",
 		handler: function (registers, param, tick, channel, player) {
 			if (!registers.sample.sample) return;
 			
@@ -108,7 +108,7 @@ var Effects = {
 
 	// Note vibrato using a sine function with an amplitude of a given number of finetunes and a given speed.
 	VIBRATO: {
-		representations: [ "4", "H", "?", "4" ],
+		representation: "4",
 		handler: function (registers, param, tick, channel, player) {
 			// At tick 0 and non zero parameter reset vibrato sine and set new parameters.
 			if (tick === 0 && param !== 0) {
@@ -137,7 +137,7 @@ var Effects = {
 	// Slide the volume up or down on every tick except the first and porta to the note that was set by the
 	// tone porta effect. Parameter values > 127 will slide up, lower values slide down.
 	TONE_PORTA_VOL_SLIDE: {
-		representations: [ "5", "L", "?", "5" ],
+		representation: "5",
 		handler: function (registers, param, tick, channel, player) {
 			if (!registers.sample.sample) return;
 			
@@ -174,7 +174,7 @@ var Effects = {
 
 	// Note vibrato using previous vibrato parameters and do a volume slide using current parameter.
 	VIBRATO_VOL_SLIDE: {
-		representations: [ "6", "K", "?", "6" ],
+		representation: "6",
 		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy volume slide parameter if set.
 			if (tick === 0 && param !== 0) {
@@ -196,7 +196,7 @@ var Effects = {
 
 	// Tremolo vibrates the volume up and down.
 	TREMOLO: {
-		representations: [ "7", "R", "?", "7" ],
+		representation: "7",
 		handler: function (registers, param, tick, channel, player) {
 			// At tick 0 and non zero parameter reset tremolo sine and set new parameters.
 			if (tick === 0 && param !== 0) {
@@ -222,7 +222,7 @@ var Effects = {
 	// Set panning for this channel. 0x00 - left, 0x40 - middle, 0x80 - right. Anything greater than 0x80 
 	// causes surround sound on the current channel.
 	SET_PAN: {
-		representations: [ "8", "?", "?", "8" ],
+		representation: "8",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.panning.pan = 1 - (param / 128.0);
@@ -232,7 +232,7 @@ var Effects = {
 
 	// Set sample offset in words.
 	SAMPLE_OFFSET: {
-		representations: [ "9", "O", "?", "9" ],
+		representation: "9",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.sample.position  = param * 256;
@@ -244,7 +244,7 @@ var Effects = {
 	// Slide the volume up or down on every tick except the first. Parameter values > 127 will slide up, lower
 	// values slide down.
 	VOLUME_SLIDE: {
-		representations: [ "A", "D", "?", "A" ],
+		representation: "A",
 		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy parameter if set.
 			if (tick === 0 && param !== 0) {
@@ -275,7 +275,7 @@ var Effects = {
 
 	// After this row jump to row 1 of the given order.
 	POSITION_JUMP: {
-		representations: [ "B", "B", "?", "B" ],
+		representation: "B",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				player.setOrderJump (param);
@@ -285,7 +285,7 @@ var Effects = {
 
 	// Set the volume of a channel on the first tick according to the given parameter.
 	SET_VOLUME: {
-		representations: [ "C", "?", "?", "C" ],
+		representation: "C",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.volume.channelVolume = Math.max (0.0, Math.min (param / 64.0, 1.0));
@@ -295,7 +295,7 @@ var Effects = {
 
 	// At the end of this row jump to the next order and start playing at the row given in the parameter.
 	PATTERN_BREAK: {
-		representations: [ "D", "C", "?", "D" ],
+		representation: "D",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				player.setBreakPattern (((param & 0xF0) >> 4) * 10 + (param & 0x0F));
@@ -304,7 +304,7 @@ var Effects = {
 	},
 
 	SET_FILTER: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				console.log ("Effect not supported: SET_FILTER");
@@ -314,7 +314,7 @@ var Effects = {
 
 	// Slide note pitch up only on the first tick.
 	FINE_PORTA_UP: {
-		representations: [ "E", "?", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				// If param value present change porta step.
@@ -332,7 +332,7 @@ var Effects = {
 
 	// Slide note pitch down only on the first tick.
 	FINE_PORTA_DOWN: {
-		representations: [ "E", "?", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				// If param value present change porta step.
@@ -349,7 +349,7 @@ var Effects = {
 	},
 
 	SET_GLISANDO: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				console.log ("Effect not supported: SET_GLISANDO");
@@ -358,7 +358,7 @@ var Effects = {
 	},
 
 	SET_VIBRATO: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				console.log ("Effect not supported: SET_VIBRATO");
@@ -368,7 +368,7 @@ var Effects = {
 
 	// Set the finetune of the sample playing on the current channel.
 	SET_FINETUNE: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0 && registers.sample.sample !== null) {
 				registers.sample.sample.fineTune = param & 0x0F;
@@ -378,7 +378,7 @@ var Effects = {
 
 	// Pattern section loop.
 	SET_LOOP: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				if ((param & 0x0F) === 0) {
@@ -399,7 +399,7 @@ var Effects = {
 	},
 
 	SET_TREMOLO: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				console.log ("Effect not supported: SET_TREMOLO");
@@ -409,7 +409,7 @@ var Effects = {
 
 	// Set panning for this channel. 0x00 - left --> 0x0F - right.
 	SET_PAN_16: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.panning.pan = (param & 0x0F) / 15.0;
@@ -419,7 +419,7 @@ var Effects = {
 
 	// Retrigger the note every param ticks.
 	RETRIGGER:{
-		representations: [ "E", "?", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
 				registers.sample.remain   = registers.sample.sample.sampleLength;
@@ -430,7 +430,7 @@ var Effects = {
 
 	// At the first tick of the row add x to the volume.
 	FINE_VOL_SLIDE_UP: {
-		representations: [ "E", "?", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.volume.channelVolume = Math.min (registers.volume.sampleVolume + (param & 0x0F) / 15.0, 1.0);
@@ -440,7 +440,7 @@ var Effects = {
 
 	// At the first tick of the row subtract x from the volume.
 	FINE_VOL_SLIDE_DOWN: {
-		representations: [ "E", "?", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.volume.channelVolume = Math.max (0.0, registers.volume.sampleVolume - (param & 0x0F) / 15.0);
@@ -450,7 +450,7 @@ var Effects = {
 
 	// Cut the volume of the note to 0 if the current tick equals the parameter value.
 	CUT_NOTE: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === (param & 0x0F)) {
 				registers.volume.channelVolume = 0.0;
@@ -460,7 +460,7 @@ var Effects = {
 
 	// Set the number of ticks to wait before starting the note.
 	DELAY_NOTE: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.noteDelay = (param & 0x0F);
@@ -471,7 +471,7 @@ var Effects = {
 	// Keep the player at the current row for the time equivalent to param * rowDelay. Notes are not retriggered, but 
 	// effects remain active.
 	DELAY_PATTERN: {
-		representations: [ "E", "S", "?", "E" ],
+		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (registers.patternDelay === 0) {
 				registers.patternDelay = (param & 0x0F) + 1;
@@ -482,7 +482,7 @@ var Effects = {
 	// Set BMP or tempo on the first tick according to the parameter of the effect. A value greater than 32 will
 	// change the BPM, other values change the tempo.
 	SET_TEMPO_BPM: {
-		representations: [ "F", "?", "?", "F" ],
+		representation: "F",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				if (param <= 32) {
@@ -496,7 +496,7 @@ var Effects = {
 
 	// Set speed as defined by the number of ticks per row.
 	SET_SPEED: {
-		representations: [ "?", "A", "?", "?" ],
+		representation: "F",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				if (param !== 0) {
@@ -515,7 +515,7 @@ var Effects = {
 
 	// Set tempo as the number of beats per minute.
 	SET_TEMPO: {
-		representations: [ "?", "T", "?", "?" ],
+		representation: "F",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				player.setBpm (param);
@@ -529,7 +529,7 @@ var Effects = {
 
 	// Retrigger note if the current tick is equal to param Y and perform a volume slide using param X.
 	RETRIG_VOL_SLIDE: {
-		representations: [ "?", "Q", "?", "R" ],
+		representation: "R",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
 				registers.sample.remain   = registers.sample.sample.sampleLength;
@@ -593,7 +593,7 @@ var Effects = {
 
 	// Set the global volume.
 	SET_GLOBAL_VOLUME: {
-		representations: [ "?", "V", "?", "G" ],
+		representation: "G",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				player.setMasterVolume (Math.max (0.0, Math.min (param / 64.0, 1.0)));
@@ -603,7 +603,7 @@ var Effects = {
 
 	// Slide global volume up or down.
 	GLOBAL_VOLUME_SLIDE: {
-		representations: [ "?", "?", "?", "H" ],
+		representation: "H",
 		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy parameter if set.
 			if (tick === 0 && param !== 0) {
@@ -619,7 +619,7 @@ var Effects = {
 
 	// Set envelope position on current instrument.
 	ENVELOPE_POSITION: {
-		representations: [ "?", "?", "?", "L" ],
+		representation: "L",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				registers.envelopePosition = param;
@@ -629,7 +629,7 @@ var Effects = {
 
 	// Slide panning of the channel left or right.
 	PAN_SLIDE: {
-		representations: [ "?", "?", "?", "P" ],
+		representation: "P",
 		handler: function (registers, param, tick, channel, player) {
 			// On tick 0 copy parameter if set.
 			if (tick === 0 && param !== 0) {
@@ -645,7 +645,7 @@ var Effects = {
 
 	// Tremor turns a note on for X tick and then switches it off for Y frames.
 	TREMOR: {
-		representations: [ "?", "I", "?", "T" ],
+		representation: "T",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0 && param !== 0) {
 				registers.tremor.onCount  = param & 0xF0;
@@ -660,7 +660,7 @@ var Effects = {
 
 	// Fine vibrato is the same as regular vibrato, except that it only triggers every 4th tick.
 	FINE_VIBRATO: {
-		representations: [ "?", "U", "?", "?" ],
+		representation: "U",
 		handler: function (registers, param, tick, channel, player) {
 			// At tick 0 and non zero parameter reset vibrato sine and set new parameters.
 			if (tick === 0 && param !== 0) {
@@ -690,7 +690,7 @@ var Effects = {
 
 	// Extra fine porta up 4 times finer than fine porta up.
 	EXTRA_FINE_PORTA_UP: {
-		representations: [ "?", "?", "?", "X" ],
+		representation: "X",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				// If param value present change porta step.
@@ -708,7 +708,7 @@ var Effects = {
 
 	// Extra fine porta down 4 times finer than fine porta down.
 	EXTRA_FINE_PORTA_DOWN: {
-		representations: [ "?", "?", "?", "X" ],
+		representation: "X",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
 				// If param value present change porta step.
@@ -726,7 +726,7 @@ var Effects = {
 	
 	// Parse effect parameter from volume column and handle the effect.
 	VOLUME_EFFECT: {
-		representations: ["", "", "", "V"],
+		representation: "V",
 		handler: function (registers, params, tick, channel, player) {
 			var effect = (params & 0xF0) >> 4;
 			var param  = params & 0x0F;

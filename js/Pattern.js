@@ -95,7 +95,7 @@ function Pattern (rows, columns) {
 		text += " ";
 		
 		if (this.effect[row][channel] != Effects.NONE) {
-			text += this.effect[row][channel].representations[modType];
+			text += this.effect[row][channel].representation;
 			if (text.length == 11) {
                	text += hexValues.charAt (Math.floor (this.effectParam[row][channel] / 16));
 			}

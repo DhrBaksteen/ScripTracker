@@ -91,7 +91,7 @@ function init () {
 					mod = XmLoader (fileLoadedEvent.target.result);
 				}
 								
-				player.load (mod);
+				player.loadModule (mod);
 				
 				// Set channel headers
 				$("td[id^='tdPatHead']").each (function (i) {
