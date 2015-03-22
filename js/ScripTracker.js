@@ -28,6 +28,7 @@ function ScripTracker () {
 	var ticksPerRow     = 0;			// Current number of ticks in one row (tempo).
 	var samplesPerTick  = 0;			// Number of samples to process for the current tick.
 	var sampleCount     = 0;			// Number of samples processed for the current tick.
+	var sampleStepping  = 0;			// Base sample step based on 125 / 6. 
 	var isPlaying       = false;		// Is the player currently playing?
 
 	var masterVolume     = 1;			// The master volume multiplier.
@@ -54,6 +55,7 @@ function ScripTracker () {
 	}
 	
 	sampleRate      = audioContext.sampleRate;
+	sampleStepping  = Math.round(sampleRate * 0.02) * 3;
 	audioSource     = audioContext.createBufferSource ();
 	audioScriptNode = audioContext.createScriptProcessor (bufferSize, 1, 2);
 	audioScriptNode.onaudioprocess = fillBuffer;
@@ -247,7 +249,7 @@ function ScripTracker () {
 							registers.sample.position     = 0;											// Restart sample.
 							registers.volume.sampleVolume = registers.sample.sample.volume;				// Reset sample volume.
 							registers.sample.remain       = registers.sample.sample.sampleLength		// Repeat length of this sample.
-							registers.sample.step         = freq / (samplesPerTick * 3);				// Samples per division.
+							registers.sample.step         = freq / sampleStepping;						// Samples per division.
 							registers.sample.reversed     = false;										// Reset sample reverse playback.
 							registers.noteDelay           = 0;											// Reset note delay.
 						}
@@ -585,7 +587,7 @@ function ScripTracker () {
 	 * channel - Channel index to get the volume.
 	 */
 	this.getChannelVolume = function (channel) {
-    	return channelRegisters[channel].volume.sampleVolume * channelRegisters[channel].volume.channelVolume * masterVolume;
+		return channelRegisters[channel].volume.sampleVolume * channelRegisters[channel].volume.channelVolume * masterVolume;
 	};
 
 
@@ -650,6 +652,10 @@ function ScripTracker () {
 	
 	this.getSampleRate = function () {
 		return sampleRate;
+	}
+
+	this.getSampleStepping = function () {
+		return sampleStepping;
 	}
 	
 	this.getNote = function (channel) {

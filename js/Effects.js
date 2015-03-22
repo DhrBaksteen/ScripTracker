@@ -34,7 +34,7 @@ var Effects = {
 
 			// Calculate new frequency.
 			var freq = 8363 * Math.pow (2, (4608 - registers.period + arpeggio) / 768);
-			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			registers.sample.step = freq / player.getSampleStepping ();
 		}
 	},
 
@@ -47,7 +47,7 @@ var Effects = {
 			} else if (tick > 0) {
 				registers.period -= registers.porta.step * player.getTicksPerRow ();
 				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step = freq / player.getSampleStepping ();
 			}
 		}
 	},
@@ -61,7 +61,7 @@ var Effects = {
 			} else if (tick > 0) {
 				registers.period += registers.porta.step * player.getTicksPerRow ();
 				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step = freq / player.getSampleStepping ();
 			}
 		}
 	},
@@ -102,7 +102,7 @@ var Effects = {
 
 			// Calculate new sample step.
 			var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			registers.sample.step = freq / player.getSampleStepping ();
 		}
 	},
 
@@ -129,7 +129,7 @@ var Effects = {
 			var vibrato = Math.sin (registers.vibrato.position) * registers.vibrato.amplitude;
 			var freq = 8363 * Math.pow (2, (4608 - registers.period + vibrato) / 768);
 
-			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			registers.sample.step = freq / player.getSampleStepping ();
 			registers.vibrato.position += registers.vibrato.step;
 		}
 	},
@@ -165,7 +165,7 @@ var Effects = {
 
 			// Calculate new sample step and set volume.
 			var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			registers.sample.step = freq / player.getSampleStepping ();
 
 			var slide = (((param & 0xF0) != 0) ? (param & 0xF0) >> 4 : -(param & 0x0F)) / 64.0;
 			registers.volume.channelVolume = Math.max (0.0, Math.min (registers.volume.channelVolume + slide, 1.0));
@@ -184,7 +184,7 @@ var Effects = {
 			//  Calculate new note frequency and advance vibrato sine pos.
 			var vibrato = Math.sin (registers.vibrato.position) * registers.vibrato.amplitude;
 			var freq = 8363 * Math.pow (2, (4608 - registers.period + vibrato) / 768);
-			registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+			registers.sample.step = freq / player.getSampleStepping ();
 
 			registers.vibrato.position += registers.vibrato.step;
 
@@ -325,7 +325,7 @@ var Effects = {
 				// Slide pitch up.
 				registers.period -= registers.porta.step * player.getTicksPerRow ();
 				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step = freq / player.getSampleStepping ();
 			}
 		}
 	},
@@ -343,7 +343,7 @@ var Effects = {
 				// Slide pitch down.
 				registers.period += registers.porta.step * player.getTicksPerRow ();
 				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step = freq / player.getSampleStepping ();
 			}
 		}
 	},
@@ -682,7 +682,7 @@ var Effects = {
 				var vibrato = Math.sin (registers.vibrato.position) * registers.vibrato.amplitude;
 				var freq = 8363 * Math.pow (2, (4608 - registers.period + vibrato) / 768);
 
-				registers.sample.step  = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step  = freq / player.getSampleStepping ();
 				registers.vibrato.position += registers.vibrato.step;
 			}
 		}
@@ -701,7 +701,7 @@ var Effects = {
 				// Slide pitch up.
 				registers.period -= registers.porta.step;
 				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step = freq / player.getSampleStepping ();
 			}
 		}
 	},
@@ -719,7 +719,7 @@ var Effects = {
 				// Slide pitch down.
 				registers.period += registers.porta.step;
 				var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
-				registers.sample.step = freq / (player.getSamplesPerTick () * 3);
+				registers.sample.step = freq / player.getSampleStepping ();
 			}
 		}
 	},
