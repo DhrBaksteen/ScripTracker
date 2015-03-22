@@ -10,7 +10,7 @@
  * Last updated:	2014-11-08
  */
 function XmLoader (fileData) {
-	mod      = new Module ();
+	var mod  = new Module ();
 	mod.type = ModTypes.XM;
 	
 	var headerSize      = readDWord (fileData, 60);

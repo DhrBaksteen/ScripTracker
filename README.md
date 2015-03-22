@@ -1,31 +1,49 @@
 #ScripTracker
 
-A module player in pure JavaScript that plays MOD, S3M and XM files in modern browsers.
+A module player in pure JavaScript that plays MOD, S3M and XM files in modern browsers. For a working example see http://scriptracker.cheerful.nl.
 
-The project comes with a stylish player interface for loading modules from your local machine and monitoring playback as you would expect from any tracker. Check out http://scriptracker.cheerful.nl for a working example. The player alows you to load module files from your local machine. However loading from a URL is supported in code the maximum size is limited to about 200kb.
+Currently the maximum size of a module you can load is about 200kb. The example is able to handle much larger files when loaded from your local machine.
 
 Supported browsers are Chrome, Firefox, Safari and Opera.
 
-##Usage
+##Demo
+Check out my stylish player at http://scriptracker.cheerful.nl!
 
-Required source files (until I minimize stuff):
+##Install
+Download the latest ScripTracker build and include the script in your html file:
 ```html
-<script type="text/javascript" src="js/ScripTracker.js"></script>
-<script type="text/javascript" src="js/Enums.js"></script>
-<script type="text/javascript" src="js/Module.js"></script>
-<script type="text/javascript" src="js/Pattern.js"></script>
-<script type="text/javascript" src="js/Instrument.js"></script>
-<script type="text/javascript" src="js/Sample.js"></script>
-<script type="text/javascript" src="js/Effects.js"></script>
-<script type="text/javascript" src="js/Envelope.js"></script>
-<script type="text/javascript" src="js/ModLoader.js"></script>
-<script type="text/javascript" src="js/S3mLoader.js"></script>
-<script type="text/javascript" src="js/XmLoader.js"></script>
+<script type="text/javascript" src="scriptracker-0.9.8.min.js"></script>
 ```
 
-To load and play a module:
+##Usage
+Here are some basic usage examples:
+
+###Playing a song
 ```javascript
 var modPlayer = new ScripTracker();
-modPlayer.load("http://mywebsite.com/awesome_tune.xm");
-modPlayer.play();
+modPlayer.setOnSongLoaded(function() {
+	modPlayer.play();
+});
+modPlayer.load("http://scriptracker.cheerful.nl/Medivo.s3m");
+```
+
+###Stopping playback and rewind to beginning
+```javascript
+modPlayer.stop();
+modPlayer.rewind();
+```
+
+###Fast forwarding and reversing
+```javascript
+modPlayer.nextOrder();
+modPlayer.prevOrder();
+```
+
+###Handling player updates on each row
+```javascript
+modPlayer.setRowCallbackhandler(function(player) {
+	console.log("Current song is " + player.getSongName());
+	console.log("Order " + player.getCurrentOrder() + " of " + player.getSongLength());
+	console.log("Row " + player.getCurrentRow());
+});
 ```

@@ -10,7 +10,7 @@
  * Last updated:	2014-11-10
  */
 function S3mLoader (fileData) {
-	mod = new Module ();
+	var mod = new Module ();
 	mod.type     = ModTypes.S3M;
 	mod.channels = 32;
 

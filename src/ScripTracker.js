@@ -44,6 +44,7 @@ function ScripTracker () {
 	}
 
 	var rowCallbackHandler = null;			// Callback function called when a new row is being processed.
+	var onSongLoaded       = null;			// Callback function called when song is loaded and ready to play.
 
 	if (typeof AudioContext !== "undefined") {
 		audioContext    = new AudioContext ();			// Create AudioContext.
@@ -78,6 +79,10 @@ function ScripTracker () {
 		}
 
 		this.resetPlayback ();
+
+		if (onSongLoaded) {
+			onSongLoaded();
+		}
 	};
 
 
@@ -515,6 +520,16 @@ function ScripTracker () {
 	 */
 	this.setRowCallbackhandler = function (handler) {
 		rowCallbackHandler = handler;
+	}
+
+
+	/**
+	 * Register a function to be called when a new song is loaded and ready to be played.
+	 *
+	 * handler - The function to be called.
+	 */
+	this.setOnSongLoaded = function (handler) {
+		onSongLoaded = handler;
 	}
 
 	/**

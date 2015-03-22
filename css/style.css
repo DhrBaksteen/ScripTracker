@@ -29,6 +29,17 @@ a {
 	text-decoration: none;
 }
 
+a.github_link {
+	position: absolute;
+	bottom: 0px;
+	left: 50%;
+	opacity: 0.5;
+	transition: opacity 0.5s;
+}
+
+a.github_link:hover {
+	opacity: 1;
+}
 
 td.spacer10 {
 	width: 10px;
