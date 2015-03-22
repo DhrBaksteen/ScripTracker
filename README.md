@@ -18,28 +18,28 @@ Download the latest ScripTracker build and include the script in your html file:
 ##Usage
 Here are some basic usage examples:
 
-###Playing a song
+####Playing a song
 ```javascript
 var modPlayer = new ScripTracker();
 modPlayer.setOnSongLoaded(function() {
 	modPlayer.play();
 });
-modPlayer.load("http://scriptracker.cheerful.nl/Medivo.s3m");
+modPlayer.load("http://my.website.com/cool_song.xm");
 ```
 
-###Stopping playback and rewind to beginning
+####Stopping playback and rewind to beginning
 ```javascript
 modPlayer.stop();
 modPlayer.rewind();
 ```
 
-###Fast forwarding and reversing
+####Fast forwarding and reversing
 ```javascript
 modPlayer.nextOrder();
 modPlayer.prevOrder();
 ```
 
-###Handling player updates on each row
+####Handling player updates on each row
 ```javascript
 modPlayer.setRowCallbackhandler(function(player) {
 	console.log("Current song is " + player.getSongName());
