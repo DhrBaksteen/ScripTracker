@@ -1,5 +1,10 @@
-compiled/
-js/bin/
-Compiler/
-mods/
+js/
+css/
+doc/
+music/
+node_modules/
+res/
 *.DS_Store
+package.json
+gulpfile.js
+index.html
