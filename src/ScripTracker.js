@@ -323,6 +323,14 @@ function ScripTracker () {
 			patternDelay --;
 		}
 
+		// Stop and reset if we no longer have a pattern to work with.
+		if (!pattern) {
+			_this.stop ();
+			_this.rewind ();
+			_this.resetPlayback ();
+			return;
+		}
+
 		// When we reach the end of our current pattern jump to the next one.
 		if (currentRow === pattern.rows) {
 			currentRow = 0;

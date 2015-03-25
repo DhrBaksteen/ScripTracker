@@ -433,7 +433,7 @@ var Effects = {
 		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
-				registers.volume.channelVolume = Math.min (registers.volume.sampleVolume + (param & 0x0F) / 15.0, 1.0);
+				registers.volume.channelVolume = Math.min (registers.volume.channelVolume + (param & 0x0F) / 15.0, 1.0);
 			}
 		}
 	},
@@ -443,7 +443,7 @@ var Effects = {
 		representation: "E",
 		handler: function (registers, param, tick, channel, player) {
 			if (tick === 0) {
-				registers.volume.channelVolume = Math.max (0.0, registers.volume.sampleVolume - (param & 0x0F) / 15.0);
+				registers.volume.channelVolume = Math.max (0.0, registers.volume.channelVolume - (param & 0x0F) / 15.0);
 			}
 		}
 	},
