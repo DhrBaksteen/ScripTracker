@@ -4,6 +4,8 @@ A module player in pure JavaScript that plays MOD, S3M and XM files in modern br
 
 Supported browsers are Chrome, Firefox, Safari and Opera.
 
+Current version is 1.00
+
 ##Demo
 Check out my stylish player at http://scriptracker.cheerful.nl!
 
