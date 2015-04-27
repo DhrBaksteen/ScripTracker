@@ -7,11 +7,11 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2014-05-12
- * Last updated:	2014-11-08
+ * Last updated:	2015-04-26
  */
-var ModLoader = function (fileData) {
+ModuleLoaders.loadMOD = function (fileData) {
 	var mod = new Module ();
-	mod.type = ModTypes.MOD;
+	mod.type = Module.Types.MOD;
 
 	// Note period lookup table.
 	var notePeriods = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 906,
@@ -21,7 +21,7 @@ var ModLoader = function (fileData) {
 					   107 , 101 , 95  , 90  , 85  , 80  , 75  , 71  , 67  , 63  , 60 , 56 ];
 
 	// Find out the number of channels in this mod.
-	switch (fileData.substring (1080, 1084)) {
+	switch (ModuleLoaders.readString(fileData, 1080, 4)) {
 		case "6CHN":
 			mod.channels = 6;
 			break;
@@ -43,56 +43,55 @@ var ModLoader = function (fileData) {
 	}
 
 	// Load general module info.
-	mod.name            = fileData.substring  (0, 20);
-	mod.songLength      = fileData.charCodeAt (950);
-	mod.restartPosition = fileData.charCodeAt (951);
+	mod.name            = ModuleLoaders.readString(fileData, 0, 20);
+	mod.songLength      = fileData[950];
+	mod.restartPosition = fileData[951];
 
 	// Create samples and add them to the module.
 	for (var i = 0; i < 31; i ++) {
-		var sampleHeader = fileData.substring (20 + i * 30, 50 + i * 30);
-		
-		var instrument = new Instrument ();
+		var sampleHeader = fileData.subarray(20 + i * 30, 50 + i * 30);
 
-		var sample = new Sample ();
-		sample.name         = sampleHeader.substring (0, 22);
-		sample.sampleLength = (sampleHeader.charCodeAt (22) * 256 + sampleHeader.charCodeAt (23)) * 2;
-		sample.fineTune     = (sampleHeader.charCodeAt (24) & 0x0F);
-		sample.volume       = (Math.min (sampleHeader.charCodeAt (25), 64.0)) / 64.0;
-		sample.loopStart	= (sampleHeader.charCodeAt (26) * 256 + sampleHeader.charCodeAt (27)) * 2;
-		sample.loopLength	= (sampleHeader.charCodeAt (28) * 256 + sampleHeader.charCodeAt (29)) * 2;
-		sample.loopType     = (sample.loopLength > 1) ? SampleLoop.LOOP_FORWARD : SampleLoop.LOOP_NONE;
+		var instrument = new Module.Instrument();
+		var sample     = new Module.Sample();
+		sample.name         = ModuleLoaders.readString(sampleHeader, 0, 22);
+		sample.sampleLength = ModuleLoaders.readWordBE(sampleHeader, 22) * 2;
+		sample.fineTune     = sampleHeader[24] & 0x0F;
+		sample.volume       = (Math.min(sampleHeader[25], 64.0)) / 64.0;
+		sample.loopStart	= ModuleLoaders.readWordBE(sampleHeader, 26) * 2;
+		sample.loopLength	= ModuleLoaders.readWordBE(sampleHeader, 28) * 2;
+		sample.loopType     = (sample.loopLength > 1) ? Module.Sample.SampleLoop.LOOP_FORWARD : Module.Sample.SampleLoop.LOOP_NONE;
 		
 		if (sample.fineTune > 7) sample.fineTune -= 16;
 		sample.fineTune *= 16;
 		
 		instrument.name = sample.name;
-		instrument.samples.push (sample);
-		mod.instruments.push (instrument);
+		instrument.samples.push(sample);
+		mod.instruments.push(instrument);
 	}
 
 	// Fill the order table and get the number of patterns in this mod
 	var patternCount = 0;
 	for (var i = 0; i < 128; i ++) {
-		mod.orders[i] = fileData.charCodeAt (952 + i);
-		patternCount  = Math.max (patternCount, mod.orders[i] + 1);
+		mod.orders[i] = fileData[952 + i];
+		patternCount  = Math.max(patternCount, mod.orders[i] + 1);
 	}
 
 	// Load all patterns
 	var patternLength = mod.channels * 256;
 	for (var i = 0; i < patternCount; i ++) {
-		var patternHeader = fileData.substring (1084 + i * patternLength, 1084 + i * patternLength + patternLength);
+		var patternHeader = fileData.subarray(1084 + i * patternLength, 1084 + i * patternLength + patternLength);
 
 		// Create pattern and set number of rows and channels.
-		var pattern = new Pattern (64, mod.channels);
+		var pattern = new Module.Pattern(64, mod.channels);
 
 		// Load pattern data.
 		for (var r = 0; r < 64; r ++) {
 			for (var c = 0; c < mod.channels; c ++) {
 				var offset = r * mod.channels * 4 + c * 4;
-				var byte1 = patternHeader.charCodeAt (offset);
-				var byte2 = patternHeader.charCodeAt (offset + 1);
-				var byte3 = patternHeader.charCodeAt (offset + 2);
-				var byte4 = patternHeader.charCodeAt (offset + 3);
+				var byte1 = patternHeader[offset];
+				var byte2 = patternHeader[offset + 1];
+				var byte3 = patternHeader[offset + 2];
+				var byte4 = patternHeader[offset + 3];
 
 				// Find the note number corresponding to the period.
 				var period = ((byte1 & 0x0F) * 256) | byte2;
@@ -125,7 +124,7 @@ var ModLoader = function (fileData) {
 
 				pattern.instrument[r][c] = (byte1 & 0xF0) | ((byte3 & 0xF0) / 16);
 				pattern.volume[r][c]     = -1;
-				
+
 				pattern.effectParam[r][c] = byte4;
 				if ((byte3 & 0x0F) == 0 && byte4 != 0) {
 					pattern.effect[r][c] = Effects.ARPEGGIO;
@@ -214,13 +213,13 @@ var ModLoader = function (fileData) {
 			}
 		}
 
-		mod.patterns.push (pattern);
+		mod.patterns.push(pattern);
 	}
 
 	// Load sample data.
 	var filePos = patternCount * patternLength + 1084;
 	for (var i = 0; i < mod.instruments.length; i ++) {
-		mod.instruments[i].samples[0].loadSample (fileData.substring (filePos, filePos + mod.instruments[i].samples[0].sampleLength), false, mod.signedSample);
+		mod.instruments[i].samples[0].loadSample (fileData.subarray(filePos, filePos + mod.instruments[i].samples[0].sampleLength), false, mod.signedSample);
 		mod.instruments[i].samples[0].sample[0] = 0;
 		mod.instruments[i].samples[0].sample[1] = 0;
 

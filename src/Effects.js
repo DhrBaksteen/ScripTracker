@@ -9,7 +9,7 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-06-21
- * Last updated:	2014-11-15
+ * Last updated:	2015-04-27
  */
 var Effects = {
 	NONE: {
@@ -424,6 +424,7 @@ var Effects = {
 			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
 				registers.sample.remain   = registers.sample.sample.sampleLength;
 				registers.sample.position = 0;
+				player.dispatchEvent(ScripTracker.Events.instrument, player, channel, registers.instrument, registers.note, Effects.RETRIGGER, param);
 			}
 		}
 	},
@@ -538,7 +539,7 @@ var Effects = {
 
 			if (tick === 0 && (param & 0xF0) !== 0) {
 				registers.volume.channelVolumeSlide = (param & 0xF0) >> 4;
-			} else if (tick > 0) {						
+			} else if (tick > 0) {
 				switch (registers.volume.channelVolumeSlide) {
 					case 1:
 						registers.volume.channelVolume -= (1 / 64);
