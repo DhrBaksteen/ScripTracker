@@ -1,17 +1,24 @@
 "use strict";
 
+var Module     = require("./module");
+var Pattern    = require("./pattern");
+var Instrument = require("./instrument");
+var Sample     = require("./sample");
+var Effects    = require("./effects");
+var Helpers    = require("./helpers");
+
 /**
- * ModLoader.js
+ * ModModule.js
  *
  * Loader for MOD modules. Returns a generic ScripTracker Module object for playback.
  *
  * Author:  		Maarten Janssen
  * Date:    		2014-05-12
- * Last updated:	2015-04-26
+ * Last updated:	2015-07-22
  */
-ModuleLoaders.loadMOD = function (fileData) {
-	var mod = new Module ();
-	mod.type = Module.Types.MOD;
+var ModModule = function(fileData) {
+	Module.call(this);
+	this.type = Module.Types.MOD;
 
 	// Note period lookup table.
 	var notePeriods = [1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 906,
@@ -21,73 +28,73 @@ ModuleLoaders.loadMOD = function (fileData) {
 					   107 , 101 , 95  , 90  , 85  , 80  , 75  , 71  , 67  , 63  , 60 , 56 ];
 
 	// Find out the number of channels in this mod.
-	switch (ModuleLoaders.readString(fileData, 1080, 4)) {
+	switch (Helpers.readString(fileData, 1080, 4)) {
 		case "6CHN":
-			mod.channels = 6;
+			this.channels = 6;
 			break;
 		case "FLT8":
 		case "8CHN":
 		case "CD81":
 		case "OKTA":
-			mod.channels = 8;
+			this.channels = 8;
 			break;
 		case "16CN":
-			mod.channels = 16;
+			this.channels = 16;
 			break;
 		case "32CN":
-			mod.channels = 32;
+			this.channels = 32;
 			break;
 		default:
-			mod.channels = 4;
+			this.channels = 4;
 			break;
 	}
 
 	// Load general module info.
-	mod.name            = ModuleLoaders.readString(fileData, 0, 20);
-	mod.songLength      = fileData[950];
-	mod.restartPosition = fileData[951];
+	this.name            = Helpers.readString(fileData, 0, 20);
+	this.songLength      = fileData[950];
+	this.restartPosition = fileData[951];
 
 	// Create samples and add them to the module.
 	for (var i = 0; i < 31; i ++) {
 		var sampleHeader = fileData.subarray(20 + i * 30, 50 + i * 30);
 
-		var instrument = new Module.Instrument();
-		var sample     = new Module.Sample();
-		sample.name         = ModuleLoaders.readString(sampleHeader, 0, 22);
-		sample.sampleLength = ModuleLoaders.readWordBE(sampleHeader, 22) * 2;
+		var instrument = new Instrument();
+		var sample     = new Sample();
+		sample.name         = Helpers.readString(sampleHeader, 0, 22);
+		sample.sampleLength = Helpers.readWordBE(sampleHeader, 22) * 2;
 		sample.fineTune     = sampleHeader[24] & 0x0F;
 		sample.volume       = (Math.min(sampleHeader[25], 64.0)) / 64.0;
-		sample.loopStart	= ModuleLoaders.readWordBE(sampleHeader, 26) * 2;
-		sample.loopLength	= ModuleLoaders.readWordBE(sampleHeader, 28) * 2;
-		sample.loopType     = (sample.loopLength > 1) ? Module.Sample.SampleLoop.LOOP_FORWARD : Module.Sample.SampleLoop.LOOP_NONE;
-		
+		sample.loopStart    = Helpers.readWordBE(sampleHeader, 26) * 2;
+		sample.loopLength   = Helpers.readWordBE(sampleHeader, 28) * 2;
+		sample.loopType     = (sample.loopLength > 1) ? Sample.LoopType.FORWARD : Sample.LoopType.NONE;
+
 		if (sample.fineTune > 7) sample.fineTune -= 16;
 		sample.fineTune *= 16;
 		
 		instrument.name = sample.name;
 		instrument.samples.push(sample);
-		mod.instruments.push(instrument);
+		this.instruments.push(instrument);
 	}
 
 	// Fill the order table and get the number of patterns in this mod
 	var patternCount = 0;
 	for (var i = 0; i < 128; i ++) {
-		mod.orders[i] = fileData[952 + i];
-		patternCount  = Math.max(patternCount, mod.orders[i] + 1);
+		this.orders[i] = fileData[952 + i];
+		patternCount = Math.max(patternCount, this.orders[i] + 1);
 	}
 
 	// Load all patterns
-	var patternLength = mod.channels * 256;
+	var patternLength = this.channels * 256;
 	for (var i = 0; i < patternCount; i ++) {
 		var patternHeader = fileData.subarray(1084 + i * patternLength, 1084 + i * patternLength + patternLength);
 
 		// Create pattern and set number of rows and channels.
-		var pattern = new Module.Pattern(64, mod.channels);
+		var pattern = new Pattern(64, this.channels);
 
 		// Load pattern data.
 		for (var r = 0; r < 64; r ++) {
-			for (var c = 0; c < mod.channels; c ++) {
-				var offset = r * mod.channels * 4 + c * 4;
+			for (var c = 0; c < this.channels; c ++) {
+				var offset = r * this.channels * 4 + c * 4;
 				var byte1 = patternHeader[offset];
 				var byte2 = patternHeader[offset + 1];
 				var byte3 = patternHeader[offset + 2];
@@ -213,18 +220,20 @@ ModuleLoaders.loadMOD = function (fileData) {
 			}
 		}
 
-		mod.patterns.push(pattern);
+		this.patterns.push(pattern);
 	}
 
 	// Load sample data.
 	var filePos = patternCount * patternLength + 1084;
-	for (var i = 0; i < mod.instruments.length; i ++) {
-		mod.instruments[i].samples[0].loadSample (fileData.subarray(filePos, filePos + mod.instruments[i].samples[0].sampleLength), false, mod.signedSample);
-		mod.instruments[i].samples[0].sample[0] = 0;
-		mod.instruments[i].samples[0].sample[1] = 0;
+	for (var i = 0; i < this.instruments.length; i ++) {
+		this.instruments[i].samples[0].loadSample(fileData.subarray(filePos, filePos + this.instruments[i].samples[0].sampleLength), this.signedSample);
+		this.instruments[i].samples[0].sample[0] = 0;
+		this.instruments[i].samples[0].sample[1] = 0;
 
-		filePos += mod.instruments[i].samples[0].sampleLength;
+		filePos += this.instruments[i].samples[0].sampleLength;
 	}
+};
+ModModule.prototype = Object.create(Module.prototype);
 
-	return mod;
-}
+
+module.exports = ModModule;

@@ -8,9 +8,9 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-02-14
- * Last updated:	2015-04-26
+ * Last updated:	2015-07-22
  */
-var Module = function () {
+var Module = function() {
 	this.name = "";						// Name of this song
 	this.type = null;					// Module type (mod, s3m, it, xm)
 
@@ -38,3 +38,6 @@ Module.Types = {
 	IT:  "it",
 	XM:  "xm"
 };
+
+
+module.exports = Module;
