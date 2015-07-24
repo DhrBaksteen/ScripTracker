@@ -19,7 +19,7 @@ var Sample = function () {
 	this.sampleLength = 0;				// Length of this sample
 	this.loopStart    = 0;				// Start position for sample looping if enabled
 	this.loopLength   = 0;				// Length of sample loop mesaured from start if enabled
-	this.loopType     = Sample.LoopType.LOOP_NONE;
+	this.loopType     = Sample.LoopType.NONE;
 	this.sampleBits   = Sample.Bits.FORMAT_8BIT;
 	this.compression  = Sample.Compression.UNCOMPRESSED;
 
@@ -91,22 +91,24 @@ Sample.prototype.loadDeltaSample = function(sampleData) {
 	this.sample = [];
 
 	var is16Bit = this.sampleBits === Sample.Bits.FORMAT_16BIT;
-	var val = 0.0;
+	var val = 0;
 
 	for (var i = 0; i < this.sampleLength; i ++) {
 		if (!is16Bit) {
-			var val8 = sampleData[i];
-			if (val8 > 127) val8 = -(256 - val8);
-			val += val8 / 128;
+			val = (val + sampleData[i]) % 256;
+			if (val > 127) {
+				this.sample.push((256 - val) / -128);
+			} else {
+				this.sample.push(val / 128);
+			}
 		} else {
-			var val16 = Helpers.readWord(sampleData, i ++);
-			if (val16 > 32767) val16 = -(65536 - val16)
-			val += val16 / 32768;
+			val = (val + Helpers.readWord(sampleData, i ++)) % 65536;
+			if (val > 32767) {
+				this.sample.push(-(65536 - val) / 32768);
+			} else {
+				this.sample.push(val / 32768);
+			}
 		}
-
-		if (val < -1) val =  1 + (val + 1);
-		if (val > 1)  val = -1 + (val - 1);
-		this.sample.push(val);
 	}
 };
 

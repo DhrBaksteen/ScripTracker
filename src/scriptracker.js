@@ -411,7 +411,6 @@ ScripTracker.prototype.loadModule = function(url) {
  */
 ScripTracker.prototype.play = function() {
 	if (!this.isPlaying && this.module != null) {
-		console.info("Play :)");
 		this.dispatchEvent(ScripTracker.Events.play, this);
 		this.isPlaying = true;
 		this.processTick();
@@ -745,6 +744,15 @@ ScripTracker.prototype.dispatchEvent = function (event, player, channel, instrum
 	}
 };
 
+
+ScripTracker.prototype.debug = function() {
+	this.audioScriptNode.disconnect(this.audioContext.destination);
+	this.audioSource.disconnect(this.audioScriptNode);
+	this.isPlaying = false;
+	this.dispatchEvent(ScripTracker.Events.stop, this);
+	var registers = this.channelRegisters;
+	debugger;
+};
 
 ScripTracker.Events = {
 	playerReady: "SONG_LOADED",

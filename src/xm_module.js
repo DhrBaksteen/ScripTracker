@@ -182,7 +182,7 @@ var XmModule = function (fileData) {
 				sample.loopLength   = Helpers.readDWord(fileData, offset + 8);
 				sample.volume       = fileData[offset + 12] / 64.0;
 				sample.fineTune     = (fileData[offset + 13] < 128) ? fileData[offset + 13] : -((fileData[offset + 13] ^ 0xFF) + 1);
-				sample.loopType     = (sample.loopLength > 0) ? (fileData[offset + 14] & 0x03) : Sample.loopType.LOOP_NONE;
+				sample.loopType     = (sample.loopLength > 0) ? (fileData[offset + 14] & 0x03) : Sample.LoopType.NONE;
 				sample.sampleBits   = ((fileData[offset + 14] & 0x10) == 0) ? Sample.Bits.FORMAT_8BIT : Sample.Bits.FORMAT_16BIT;
 				sample.panning      = fileData[offset + 15] / 255.0;
 				sample.basePeriod   = fileData[offset + 16];
