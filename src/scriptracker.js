@@ -41,9 +41,9 @@ var ScripTracker = function() {
 	this.patternLoop      = false;		// Do not jump to next order, but repeat current.
 	this.channelRegisters = [];			// Channel registers containing the player data for each channel.
 
-	this.audioContext    = null;			// AudioContext for output.
-	this.audioSource     = null;			// Source object for audio.
-	this.audioScriptNode = null;			// Audio processing object.
+	this.audioContext    = null;		// AudioContext for output.
+	this.audioSource     = null;		// Source object for audio.
+	this.audioScriptNode = null;		// Audio processing object.
 	this.bufferSize      = 4096			// Size of the audio buffer.
 
 	this.eventHandlers = {
@@ -183,6 +183,7 @@ ScripTracker.prototype.processTick = function() {
 						registers.volume.sampleVolume = registers.sample.sample.volume;				// Set base sample volume.
 					}
 					registers.sample.position  = 0;													// Restart sample.
+					registers.sample.restart   = 0;													// Reset sample restart position.
 					registers.sample.reversed  = false;												// Reset sample reverse playback.
 					registers.volume.envelope  = instrument.volumeEnvelope;							// Get volume envelope.
 					registers.panning.envelope = instrument.panningEnvelope;						// Get panning envelope.
@@ -217,10 +218,10 @@ ScripTracker.prototype.processTick = function() {
 						registers.period = 7680 - (note - 26 - registers.sample.sample.basePeriod) * 64 - registers.sample.sample.fineTune / 2;
 						var freq = 8363 * Math.pow (2, (4608 - registers.period) / 768);
 
-						registers.sample.position     = 0;											// Restart sample.
+						registers.sample.position     = registers.sample.restart;					// Restart sample from restart position (can be changed by sample offset efect!).
 						registers.volume.sampleVolume = registers.sample.sample.volume;				// Reset sample volume.
-						registers.sample.remain       = registers.sample.sample.sampleLength		// Repeat length of this sample.
-						registers.sample.step         = freq / this.sampleStepping;						// Samples per division.
+						registers.sample.remain       = registers.sample.sample.sampleLength - registers.sample.restart		// Repeat length of this sample.
+						registers.sample.step         = freq / this.sampleStepping;					// Samples per division.
 						registers.sample.reversed     = false;										// Reset sample reverse playback.
 						registers.noteDelay           = 0;											// Reset note delay.
 

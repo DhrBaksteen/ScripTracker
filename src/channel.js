@@ -14,6 +14,7 @@ var Channel = function() {
 	this.sample = {
 		sample:   null,				// Sample object used on this channel.
 		position: 0,				// Sample position.
+		restart:  0,				// Sample restart position. Can be altered by sample offset effect.
 		step:     0,				// Sample position delta.
 		remain:   0,				// Amount af sample data remaining.
 		reversed: false				// Sample playback is reversed.
@@ -64,7 +65,8 @@ var Channel = function() {
 Channel.prototype.reset = function() {
 	this.sample.sample   = null;
 	this.sample.position = 0;
-	this.sample.step     = 0,
+	this.sample.restart  = 0;
+	this.sample.step     = 0;
 	this.sample.remain   = 0;
 	this.sample.reversed = false;
 	
