@@ -235,6 +235,7 @@ var Effects = {
 		representation: "9",
 		handler: function(registers, param, tick, channel, player) {
 			if (tick === 0) {
+				registers.sample.restart   = param * 256;
 				registers.sample.position  = param * 256;
 				registers.sample.remain   -= param * 256;
 			}
@@ -422,8 +423,8 @@ var Effects = {
 		representation: "E",
 		handler: function(registers, param, tick, channel, player) {
 			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
-				registers.sample.remain   = registers.sample.sample.sampleLength;
-				registers.sample.position = 0;
+				registers.sample.remain   = registers.sample.sample.sampleLength - registers.sample.restart;
+				registers.sample.position = registers.sample.restart;
 				player.dispatchEvent(ScripTracker.Events.instrument, player, channel, registers.instrument, registers.note, Effects.RETRIGGER, param);
 			}
 		}
@@ -533,8 +534,8 @@ var Effects = {
 		representation: "R",
 		handler: function(registers, param, tick, channel, player) {
 			if (tick % (param & 0x0F) === 0 && registers.sample.sample) {
-				registers.sample.remain   = registers.sample.sample.sampleLength;
-				registers.sample.position = 0;
+				registers.sample.remain   = registers.sample.sample.sampleLength - registers.sample.restart;
+				registers.sample.position = registers.sample.restart;
 			}
 
 			if (tick === 0 && (param & 0xF0) !== 0) {
