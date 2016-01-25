@@ -369,40 +369,43 @@ ScripTracker.prototype.loadModule = function(url) {
 	req.onload = function(loadEvent) {
 		var data = req.response;
 		if (data) {
-			data = new Uint8Array(data);
-			
-			switch (fileExt) {
-				case "mod":
-					this.module = new ModModule(data);
-					break;
-				case "s3m":
-					this.module = new S3mModule(data);
-					break;
-				case "xm":
-					this.module = new XmModule(data);
-					break;
-				default:
-					return;
-			}
-
-			this.channelRegisters = [];
-			for (var i = 0; i < this.module.channels; i ++) {
-				this.channelRegisters.push(new Channel());
-
-				// TODO: This should be part of the MOD loader I guess.
-				if (this.module.type == "mod") {
-					this.channelRegisters[i].panning.pan = (i % 2 == 0) ? 0.7 : 0.3;
-				}
-			}
-
-			this.resetPlayback();
-			this.dispatchEvent(ScripTracker.Events.playerReady, this);
+			this.loadRaw(new Uint8Array(data), fileExt);
 		}
 	}.bind (this);
 	
 	req.open ("get", url, true);
 	req.responseType = "arraybuffer";
 	req.send ();
+};
+
+
+ScripTracker.prototype.loadRaw = function(data, fileExt) {
+	switch (fileExt) {
+		case "mod":
+			this.module = new ModModule(data);
+			break;
+		case "s3m":
+			this.module = new S3mModule(data);
+			break;
+		case "xm":
+			this.module = new XmModule(data);
+			break;
+		default:
+			return;
+	}
+
+	this.channelRegisters = [];
+	for (var i = 0; i < this.module.channels; i ++) {
+		this.channelRegisters.push(new Channel());
+
+		// TODO: This should be part of the MOD loader I guess.
+		if (this.module.type == "mod") {
+			this.channelRegisters[i].panning.pan = (i % 2 == 0) ? 0.7 : 0.3;
+		}
+	}
+
+	this.resetPlayback();
+	this.dispatchEvent(ScripTracker.Events.playerReady, this);
 };
 
 
