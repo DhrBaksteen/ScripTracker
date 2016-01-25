@@ -14,7 +14,7 @@ var Helpers    = require("./helpers");
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-04-14
- * Last updated:	2015-07-22
+ * Last updated:	2016-01-25
  */
 var S3mModule = function(fileData) {
 	Module.call(this);
@@ -53,7 +53,7 @@ var S3mModule = function(fileData) {
 		sample.name         = Helpers.readString(sampleData, 48, 28);
 		sample.sampleLength = Helpers.readWord(sampleData, 16);
 		sample.loopStart    = Helpers.readWord(sampleData, 20);
-		sample.loopLength   = Helpers.readWord(sampleData, 24); - sample.loopStart;
+		sample.loopLength   = Helpers.readWord(sampleData, 24) - sample.loopStart;
 		sample.volume       = sampleData[28] / 64;
 		sample.sampleBits   = ((sampleData[31] & 0x04) !== 0) ? Sample.Bits.FORMAT_16BIT : Sample.Bits.FORMAT_8BIT;
 		sample.loopType     = ((sampleData[31] & 0x01) !== 0) ? Sample.LoopType.FORWARD : Sample.LoopType.NONE;

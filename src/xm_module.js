@@ -60,13 +60,6 @@ var XmModule = function (fileData) {
 						pattern.note[r][c]       = note;
 						pattern.instrument[r][c] = fileData[pDataOffset ++];
 						var volume = Math.max(-1, fileData[pDataOffset ++] - 16);
-						/*
-						if (volume >= 16 && volume <= 80) {
-							pattern.volume[r][c] = Math.min((volume - 16) / 64, 1.0);
-						} else {
-							pattern.volume[r][c] = 0;
-						}
-						*/
 						pattern.volume[r][c]      = volume;
 						pattern.effect[r][c]      = fileData[pDataOffset ++];
 						pattern.effectParam[r][c] = fileData[pDataOffset ++];
@@ -79,14 +72,6 @@ var XmModule = function (fileData) {
 						// Get channel volume.
 						if ((note & 0x04) != 0) {
 							var volume = Math.max(-1, fileData[pDataOffset ++] - 16);
-							/*
-							if (volume >= 16 && volume <= 80) {
-								pattern.volume[r][c] = Math.min((volume - 16) / 64, 1.0);
-							} else {
-								// TODO: effects from volume data
-								pattern.volume[r][c] = -1.0;
-							}
-							*/
 							pattern.volume[r][c] = volume;
 						} else {
 							pattern.volume[r][c] = -1.0;
@@ -125,7 +110,6 @@ var XmModule = function (fileData) {
 			offset += instrumentSize;
 		} else {
 			// Read instrument keymap form instrument --> sample linking.
-			// For now load sample indexes, after loading sample data replace indexes by sample references.
 			for (var k = 0; k < 96; k ++) {
 				instrument.sampleKeyMap[k] = fileData[offset + 33 + k];
 			}

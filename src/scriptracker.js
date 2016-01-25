@@ -13,9 +13,9 @@ var Effects   = require("./effects");
  * ScripTracker is a JavaScript mod player that can play MOD, S3M and XM music in a modern browser using the Audio API.
  *
  * Author:			Maarten Janssen
- * Version:			1.0.0
+ * Version:			1.1.0
  * Date:			2013-02-14
- * Last updated:	2015-07-23
+ * Last updated:	2016-01-25
  */
 var ScripTracker = function() {
 	this.module      = null;			// Module file that is playing.
@@ -174,8 +174,8 @@ ScripTracker.prototype.processTick = function() {
 				this.dispatchEvent(ScripTracker.Events.instrument, this, c, registers.instrument, note, effect, effectParam);
 				var instrument = this.module.instruments[instrIndex - 1];
 				if (instrument) {
-					var sampleKey = instrument.sampleKeyMap[note];
-					
+					var sampleKey = Math.max(0, instrument.sampleKeyMap[note] - 1);
+
 					// Set sample and envelope registers.
 					if (instrument.samples[sampleKey]) {
 						registers.sample.sample       = instrument.samples[sampleKey];				// Set sample based on current note.
@@ -245,6 +245,7 @@ ScripTracker.prototype.processTick = function() {
 			}
 		}
 
+		// Handle volume column effects and regular effects.
 		if (volume > 64) Effects.VOLUME_EFFECT.handler(registers, volume, this.currentTick, c, this);
 		effect.handler(registers, effectParam, this.currentTick, c, this);
 	}

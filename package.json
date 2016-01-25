@@ -1,7 +1,7 @@
 {
   "name": "ScripTracker",
-  "version": "1.0.0",
-  "description": "A JavaScript module player for MOD, S3M amd XM files",
+  "version": "1.1.0",
+  "description": "A JavaScript module player for MOD, S3M and XM files",
   "author": {
     "name": "Maarten Janssen",
     "emain": "maarten@cheerful.nl",
