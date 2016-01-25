@@ -8,25 +8,17 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2014-05-13
- * Last updated:	2015-04-26
+ * Last updated:	2015-07-22
  */
-Module.Envelope = function () {
-	this.type        = Module.Envelope.EnvelopeType.NONE;	// Set default envelope type.
-	this.points      = [];									// List of envelope points.
+var Envelope = function () {
+	this.type         = Envelope.EnvelopeType.NONE;			// Set default envelope type.
+	this.points       = [];									// List of envelope points.
 	this.lastPosition = -1;									// Position of last insertion.
 	this.lastValue    = 0;									// Last value inserted into the point list.
 	
 	this.sustainPoint = 0;									// Index of the sustain point in the points array.
 	this.loopBegin    = 0;									// Index of loop begin position.
 	this.loopEnd      = 0;									// Index of loop end position.
-};
-
-
-Module.Envelope.EnvelopeType = {
-	NONE:    0,
-	ON:      1,
-	SUSTAIN: 2,
-	LOOP:    4
 };
 
 
@@ -39,7 +31,7 @@ Module.Envelope.EnvelopeType = {
  * markLoopBegin    - Mark the newly inserted point as envelope loop begin.
  * markLoopEnd      - Mark the newly inserted point as envelope loop end.
  */
-Module.Envelope.prototype.addPoint = function (position, value, markSustainPoint, markLoopBegin, markLoopEnd) {
+Envelope.prototype.addPoint = function(position, value, markSustainPoint, markLoopBegin, markLoopEnd) {
 	var deltaPos = position - this.lastPosition;
 	var deltaVal = (value - this.lastValue) / deltaPos;
 
@@ -64,11 +56,11 @@ Module.Envelope.prototype.addPoint = function (position, value, markSustainPoint
  * release      - If note released do not clamp the envelope up until the sustain point.
  * defaultValue - Default envelope value used when envelope is off (i.e. type == 0).
  */
-Module.Envelope.prototype.getValue = function (position, release, defaultValue) {
+Envelope.prototype.getValue = function(position, release, defaultValue) {
 	position = Math.round(position);
 
 	// Clamp sustain point.
-	if ((this.type & Module.Envelope.EnvelopeType.SUSTAIN) != 0) {
+	if ((this.type & Envelope.EnvelopeType.SUSTAIN) != 0) {
 		if (!release) {
 			return this.points[Math.min(position, this.sustainPoint)];
 		} else {
@@ -76,7 +68,7 @@ Module.Envelope.prototype.getValue = function (position, release, defaultValue) 
 		}
 
 	// Loop envelope.
-	} else if ((this.type & Module.Envelope.EnvelopeType.LOOP) != 0) {
+	} else if ((this.type & Envelope.EnvelopeType.LOOP) != 0) {
 		var loopPos;
 		if (position >= this.loopBegin) {
 			loopPos = this.loopBegin + ((position - this.loopBegin) % (this.loopEnd - this.loopBegin));
@@ -86,7 +78,7 @@ Module.Envelope.prototype.getValue = function (position, release, defaultValue) 
 		return this.points[Math.min(loopPos, this.points.length - 1)];
 
 	// Normal envelope point retrieval.
-	} else if ((this.type & Module.Envelope.EnvelopeType.ON) != 0) {
+	} else if ((this.type & Envelope.EnvelopeType.ON) != 0) {
 		return this.points[Math.min(position, this.points.length - 1)];
 
 	// No envelope type, default value or 0 if note released.
@@ -94,3 +86,14 @@ Module.Envelope.prototype.getValue = function (position, release, defaultValue) 
 		return release ? 0.0 : defaultValue;
 	}
 };
+
+
+Envelope.EnvelopeType = {
+	NONE:    0,
+	ON:      1,
+	SUSTAIN: 2,
+	LOOP:    4
+};
+
+
+module.exports = Envelope;

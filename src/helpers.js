@@ -1,15 +1,15 @@
 "use strict";
 
 /**
- * ModuleLoader.js
+ * Helpers.js
  *
- * Module loaders and support functions.
+ * Helper and support functions.
  *
  * Author:  		Maarten Janssen
  * Date:    		2015-04-26
- * Last updated:	2015-04-26
+ * Last updated:	2015-07-22
  */
-var ModuleLoaders = {
+var Helpers = {
 
 	/**
 	 * Read a 2-byte word form the the buffer at a given offset.
@@ -77,3 +77,6 @@ var ModuleLoaders = {
 		return str;
 	}
 };
+
+
+module.exports = Helpers;

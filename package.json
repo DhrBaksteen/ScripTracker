@@ -1,0 +1,16 @@
+{
+  "name": "ScripTracker",
+  "version": "1.1.0",
+  "description": "A JavaScript module player for MOD, S3M and XM files",
+  "author": {
+    "name": "Maarten Janssen",
+    "emain": "maarten@cheerful.nl",
+    "url": "http://scriptracker.cheerful.nl"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.0",
+    "gulp-browserify": "^0.5.1",
+    "gulp-uglify": "^1.2.0",
+    "gulp-webserver": "^0.9.1"
+  }
+}

@@ -1,5 +1,7 @@
 "use strict";
 
+var Effects = require("./effects");
+
 /**
  * Pattern.js
  *
@@ -8,9 +10,9 @@
  *
  * Author:  		Maarten Janssen
  * Date:    		2013-02-14
- * Last updated:	2015-04-26
+ * Last updated:	2015-07-22
  */
-Module.Pattern = function (rows, columns) {
+var Pattern = function (rows, columns) {
 	this.patternIndex = 0;				// Index of this pattern within the module.
 
 	this.rows    = rows;				// Number of rows in this pattern.
@@ -47,7 +49,7 @@ Module.Pattern = function (rows, columns) {
  * row     - Index of row to export
  * channel - Index of channel to export
  */
-Module.Pattern.prototype.toText = function (row, channel, modType) {
+Pattern.prototype.toText = function (row, channel, modType) {
 	var noteNames  = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"];
 	var hexValues  = "0123456789ABCDEF";
 	var volEffects = "DCBAUHPLRG";
@@ -65,14 +67,14 @@ Module.Pattern.prototype.toText = function (row, channel, modType) {
 		text += "===";
 	} else {
 		text += noteNames[(this.note[row][channel] - 1) % 12];
-		text += Math.floor ((this.note[row][channel] - 1) / 12);
+		text += Math.floor((this.note[row][channel] - 1) / 12);
 	}
 
 	// Write instrument
 	text += " ";
 	if (this.instrument[row][channel] != 0) {
-		text += hexValues.charAt (Math.floor (this.instrument[row][channel] / 16));
-		text += hexValues.charAt (this.instrument[row][channel] % 16);
+		text += hexValues.charAt(Math.floor (this.instrument[row][channel] / 16));
+		text += hexValues.charAt(this.instrument[row][channel] % 16);
 	} else {
 		text += "..";
 	}
@@ -82,11 +84,11 @@ Module.Pattern.prototype.toText = function (row, channel, modType) {
 	if (this.volume[row][channel] > -1) {
 		var vol = this.volume[row][channel];
 		if (vol >= 80) {
-			text += volEffects.charAt (Math.floor ((vol - 80) / 16));
+			text += volEffects.charAt(Math.floor ((vol - 80) / 16));
 		} else {
-			text += hexValues.charAt (Math.floor (vol / 16));
+			text += hexValues.charAt(Math.floor (vol / 16));
 		}
-		text += hexValues.charAt (vol % 16);
+		text += hexValues.charAt(vol % 16);
 	} else {
 		text += "..";
 	}
@@ -97,12 +99,15 @@ Module.Pattern.prototype.toText = function (row, channel, modType) {
 	if (this.effect[row][channel] != Effects.NONE) {
 		text += this.effect[row][channel].representation;
 		if (text.length == 11) {
-			text += hexValues.charAt (Math.floor (this.effectParam[row][channel] / 16));
+			text += hexValues.charAt(Math.floor(this.effectParam[row][channel] / 16));
 		}
-		text += hexValues.charAt (this.effectParam[row][channel] % 16);
+		text += hexValues.charAt(this.effectParam[row][channel] % 16);
 	} else {
 		text += "...";
 	}
 
 	return text;
-}
+};
+
+
+module.exports = Pattern;
