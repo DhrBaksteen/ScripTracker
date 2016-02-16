@@ -1,0 +1,22 @@
+{
+  "name": "ScripTracker",
+  "description": "A JavaScript module player for MOD, S3M and XM files",
+  "main": "build/scriptracker-1.1.1.min.js",
+  "authors": [
+    "Maarten Janssen"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "music",
+    "MOD",
+    "S3M",
+    "XM",
+    "module",
+    "audio"
+  ],
+  "homepage": "http://scriptracker.cheerful.nl/",
+  "moduleType": [
+    "amd",
+    "node"
+  ]
+}
