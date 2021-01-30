@@ -54,7 +54,7 @@ function onSongLoaded(player, songName, songLength) {
 
 var modPlayer = new ScripTracker();
 modPlayer.on(ScripTracker.Events.playerReady, onSongLoaded);
-modPlayer.load("http://my.website.com/cool_song.xm");
+modPlayer.loadModule("http://my.website.com/cool_song.xm");
 ```
 
 #####Playback started
